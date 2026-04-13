@@ -13,7 +13,11 @@ function validateName(name) {
   const n = (name || "").trim();
 
   if (!n) {
-    throw new HttpError(400, "name is required", "VALIDATION_ERROR");
+    throw new HttpError(
+  400,
+  "name is required",
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   if (n.length < 3) {

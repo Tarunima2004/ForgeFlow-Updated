@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { readUsers, writeUsers } = require("../utils/fileDb");
-const { HttpError, assertFound } = require("../utils/errors");
+const { HttpError, assertFound, ERROR_CODES } = require("../utils/errors");
+
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -50,7 +51,11 @@ async function createUser({ name, email, password, role = "member" }) {
   const existing = users.find((u) => u.email === normalizedEmail);
 
   if (existing) {
-    throw new HttpError(409, "Email already exists", "EMAIL_ALREADY_EXISTS");
+    throw new HttpError(
+  409,
+  "Email already exists",
+  ERROR_CODES.CONFLICT
+);
   }
 
   const now = new Date().toISOString();

@@ -223,5 +223,23 @@
     "role": "member",
     "createdAt": "2026-03-28T09:28:53.079Z",
     "updatedAt": "2026-03-28T09:28:53.079Z"
+  },
+  {
+    "id": "58872b07-3e33-4cc2-8c91-764408b0ec49",
+    "name": "admin user",
+    "email": "tarunimagupta200@gmail.com",
+    "password": "203f096802fc750f8ca71545908a3979:26f84d2bedc8d3fc99046584a7f7a4d6d38f58a64f705e56c1436e6bd9702e4e00962386248c8f67bcb9fda55a33de1249d22edf039451a2a59421592bf310da",
+    "role": "member",
+    "createdAt": "2026-04-10T07:05:21.180Z",
+    "updatedAt": "2026-04-10T07:05:21.180Z"
+  },
+  {
+    "id": "ee51d911-8a56-465f-8031-e81dd7995579",
+    "name": "Test User",
+    "email": "testuser1@example.com",
+    "password": "1b1bd654045e0975a3d4583305441995:71c8b40fa76dbdc2a0137203fc32510b6aa0e0d0cf46513c09491827664a5ec265e390915ee5b865a40ab0e22347c7c5e727587076af9949202754def525493d",
+    "role": "admin",
+    "createdAt": "2026-04-10T07:13:38.159Z",
+    "updatedAt": "2026-04-10T07:13:38.159Z"
   }
 ]

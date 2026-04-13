@@ -1,4 +1,4 @@
-const { HttpError } = require("./errors");
+const { HttpError, ERROR_CODES } = require("./errors");
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim() !== "";
@@ -6,7 +6,11 @@ function isNonEmptyString(value) {
 
 function assertRequiredString(value, fieldName) {
   if (!isNonEmptyString(value)) {
-    throw new HttpError(400, `${fieldName} is required`);
+    throw new HttpError(
+  400,
+  `${fieldName} is required`,
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return value.trim();
@@ -16,7 +20,11 @@ function assertOptionalString(value, fieldName) {
   if (value === undefined) return undefined;
 
   if (typeof value !== "string") {
-    throw new HttpError(400, `${fieldName} must be a string`);
+    throw new HttpError(
+  400,
+  `${fieldName} must be a string`,
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return value.trim();
@@ -26,12 +34,20 @@ function assertOptionalStringArray(value, fieldName) {
   if (value === undefined) return undefined;
 
   if (!Array.isArray(value)) {
-    throw new HttpError(400, `${fieldName} must be an array of strings`);
+    throw new HttpError(
+  400,
+  `${fieldName} must be an array of strings`,
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   const cleaned = value.map((item) => {
     if (typeof item !== "string") {
-      throw new HttpError(400, `${fieldName} must contain only strings`);
+      throw new HttpError(
+  400,
+  `${fieldName} must contain only strings`,
+  ERROR_CODES.VALIDATION_ERROR
+);
     }
 
     return item.trim().toLowerCase();
@@ -46,9 +62,10 @@ function assertOptionalStringArray(value, fieldName) {
 function assertOneOf(value, fieldName, allowedValues) {
   if (!allowedValues.includes(value)) {
     throw new HttpError(
-      400,
-      `${fieldName} must be one of: ${allowedValues.join(", ")}`
-    );
+  400,
+  `${fieldName} must be one of: ${allowedValues.join(", ")}`,
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return value;
@@ -57,9 +74,10 @@ function assertOneOf(value, fieldName, allowedValues) {
 function assertMinLength(value, fieldName, minLength) {
   if (value.length < minLength) {
     throw new HttpError(
-      400,
-      `${fieldName} must be at least ${minLength} chars`
-    );
+  400,
+  `${fieldName} must be at least ${minLength} chars`,
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return value;
@@ -72,7 +90,11 @@ function assertValidDate(value, fieldName) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    throw new HttpError(400, `${fieldName} must be a valid date`);
+    throw new HttpError(
+  400,
+  `${fieldName} must be a valid date`,
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return value;
@@ -82,7 +104,11 @@ function parsePage(value, defaultValue = 1) {
   const parsed = parseInt(value ?? defaultValue, 10);
 
   if (Number.isNaN(parsed) || parsed < 1) {
-    throw new HttpError(400, "page must be a positive integer");
+    throw new HttpError(
+  400,
+  "page must be a positive integer",
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return parsed;
@@ -92,7 +118,11 @@ function parseLimit(value, defaultValue = 10, max = 50) {
   const parsed = parseInt(value ?? defaultValue, 10);
 
   if (Number.isNaN(parsed) || parsed < 1) {
-    throw new HttpError(400, "limit must be a positive integer");
+    throw new HttpError(
+  400,
+  "limit must be a positive integer",
+  ERROR_CODES.VALIDATION_ERROR
+);
   }
 
   return Math.min(parsed, max);
