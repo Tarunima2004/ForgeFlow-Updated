@@ -2,3 +2,13 @@
 {"time":"2026-04-13T12:26:13.732Z","method":"GET","path":"/users","statusCode":200,"duration":55}
 {"time":"2026-04-13T12:26:28.660Z","method":"GET","path":"/health","statusCode":200,"duration":4}
 {"time":"2026-04-13T12:26:58.010Z","method":"GET","path":"/health","statusCode":200,"duration":37}
+{"time":"2026-04-14T07:51:31.609Z","method":"POST","path":"/backup","statusCode":401,"duration":29}
+{"time":"2026-04-14T09:10:57.213Z","method":"POST","path":"/auth/register","statusCode":201,"duration":276}
+{"time":"2026-04-14T09:16:28.394Z","method":"POST","path":"/auth/login","statusCode":200,"duration":309}
+{"time":"2026-04-14T09:17:54.883Z","method":"POST","path":"/backup","statusCode":401,"duration":32}
+{"time":"2026-04-14T09:18:38.837Z","method":"POST","path":"/backup","statusCode":401,"duration":140}
+{"time":"2026-04-14T09:20:18.039Z","method":"POST","path":"/backup","statusCode":401,"duration":132}
+{"time":"2026-04-14T09:21:59.502Z","method":"POST","path":"/backup","statusCode":401,"duration":32}
+{"time":"2026-04-14T09:24:11.640Z","method":"POST","path":"/backup","statusCode":401,"duration":20}
+{"time":"2026-04-14T09:27:55.009Z","method":"POST","path":"/backup","statusCode":401,"duration":215}
+{"time":"2026-04-14T09:30:54.971Z","method":"POST","path":"/backup","statusCode":401,"duration":93}

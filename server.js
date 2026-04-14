@@ -9,6 +9,7 @@ const { handleIssuesRoutes } = require("./routes/issues.routes");
 const { handleProjectsRoutes } = require("./routes/projects.routes");
 const { handleUsersRoutes } = require("./routes/users.routes");
 const { handleAuthRoutes } = require("./routes/auth.routes");
+const { handleBackupRoutes } = require("./routes/backup.routes");
 
 const PORT = process.env.PORT || 3000;
 
@@ -63,6 +64,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204);
     return res.end();
   }
+  if (await handleBackupRoutes(req, res, path)) return;
 
   try {
     if (req.method === "GET" && path === "/health") {

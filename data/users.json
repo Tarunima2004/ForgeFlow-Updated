@@ -250,5 +250,14 @@
     "role": "member",
     "createdAt": "2026-04-13T07:01:49.227Z",
     "updatedAt": "2026-04-13T07:01:49.227Z"
+  },
+  {
+    "id": "eaf7dfed-955a-49a7-8482-e5439cd92cf7",
+    "name": "Admin User",
+    "email": "admintarunima@test.com",
+    "password": "df5df9bb060414774cbe776ebac521a1:4e25c53adf9b0b1853315f45d276dc6f643697b2c699cd9fcd0ab734d9e75c4eb1a59486b2497ece8edbbcee1b3f0f46b0391c5b937c9afbd464ba37270ae3c1",
+    "role": "admin",
+    "createdAt": "2026-04-14T09:10:57.150Z",
+    "updatedAt": "2026-04-14T09:10:57.150Z"
   }
 ]
