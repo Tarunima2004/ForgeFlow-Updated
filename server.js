@@ -66,11 +66,17 @@ const server = http.createServer(async (req, res) => {
 
   try {
     if (req.method === "GET" && path === "/health") {
-      return sendJson(res, 200, {
-        success: true,
-        data: { ok: true },
-      });
-    }
+  return sendJson(res, 200, {
+    success: true,
+    data: {
+      status: "OK",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(), // seconds
+      environment: process.env.NODE_ENV || "development",
+      memoryUsage: process.memoryUsage(),
+    },
+  });
+}
 
     if (req.method === "POST" && path === "/echo") {
       if (!isJsonRequest(req)) {

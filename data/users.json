@@ -241,5 +241,14 @@
     "role": "admin",
     "createdAt": "2026-04-10T07:13:38.159Z",
     "updatedAt": "2026-04-10T07:13:38.159Z"
+  },
+  {
+    "id": "aec746d3-11ac-4e22-9681-bf8abab94cf5",
+    "name": "Tarunima",
+    "email": "tarunima@test.com",
+    "password": "ffd4bd03f3049e75aae677e32b176442:d05419af8c85322b93b3eb703b8ec5d91e5cc7f61252cbcdeddd17a0081b2038e7356b2ce165b40408bc3515703803876d69b0721c9a54824460369e89e094cf",
+    "role": "member",
+    "createdAt": "2026-04-13T07:01:49.227Z",
+    "updatedAt": "2026-04-13T07:01:49.227Z"
   }
 ]
