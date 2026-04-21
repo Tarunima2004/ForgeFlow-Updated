@@ -39,12 +39,21 @@ function verifyAuthToken(token) {
     throw new HttpError(401, "Token is required", "TOKEN_REQUIRED");
   }
 
+  // ✅ FIX 1: Remove unwanted spaces (VERY IMPORTANT)
+  token = token.trim();
+
   const parts = token.split(".");
   if (parts.length !== 2) {
     throw new HttpError(401, "Invalid token format", "INVALID_TOKEN");
   }
 
   const [encodedPayload, receivedSignature] = parts;
+
+  // ✅ FIX 2: Ensure both parts exist
+  if (!encodedPayload || !receivedSignature) {
+    throw new HttpError(401, "Invalid token structure", "INVALID_TOKEN");
+  }
+
   const expectedSignature = sign(encodedPayload);
 
   const a = Buffer.from(receivedSignature);

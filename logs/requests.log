@@ -12,3 +12,9 @@
 {"time":"2026-04-14T09:24:11.640Z","method":"POST","path":"/backup","statusCode":401,"duration":20}
 {"time":"2026-04-14T09:27:55.009Z","method":"POST","path":"/backup","statusCode":401,"duration":215}
 {"time":"2026-04-14T09:30:54.971Z","method":"POST","path":"/backup","statusCode":401,"duration":93}
+{"time":"2026-04-16T11:40:56.926Z","method":"POST","path":"/login","statusCode":404,"duration":45}
+{"time":"2026-04-16T11:41:55.054Z","method":"POST","path":"/auth/login","statusCode":200,"duration":372}
+{"time":"2026-04-16T11:42:49.263Z","method":"POST","path":"/backup","statusCode":401,"duration":20}
+{"time":"2026-04-16T12:07:07.366Z","method":"POST","path":"/backup","statusCode":401,"duration":276}
+{"time":"2026-04-16T12:07:52.338Z","method":"POST","path":"/backup","statusCode":401,"duration":472}
+{"time":"2026-04-16T12:08:47.972Z","method":"POST","path":"/backup","statusCode":401,"duration":40}

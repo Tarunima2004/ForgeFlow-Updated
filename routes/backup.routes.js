@@ -5,28 +5,20 @@ const { requireRole } = require("../utils/requireRole");
 
 async function handleBackupRoutes(req, res, path) {
   if (path === "/backup" && req.method === "POST") {
-    try {
-      const user = await requireAuth(req);
-      requireRole(user, "admin");
 
-      const result = createBackup();
+    // ✅ Step 1: authenticate
+    const user = await requireAuth(req);
 
-      return sendJson(res, 200, {
-        success: true,
-        data: result,
-      });
+    // ✅ Step 2: check role
+    requireRole(user, "admin");
 
-    } catch (err) {
-      console.error("BACKUP ROUTE ERROR:", err);
+    // ✅ Step 3: create backup
+    const result = createBackup();
 
-      return sendJson(res, err.statusCode || 500, {
-        success: false,
-        error: {
-          message: err.message || "Backup failed",
-          code: err.code || "BACKUP_ERROR",
-        },
-      });
-    }
+    return sendJson(res, 200, {
+      success: true,
+      data: result,
+    });
   }
 
   return false;

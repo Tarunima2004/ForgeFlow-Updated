@@ -64,9 +64,10 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204);
     return res.end();
   }
-  if (await handleBackupRoutes(req, res, path)) return;
+  
 
   try {
+    if (await handleBackupRoutes(req, res, path)) return;
     if (req.method === "GET" && path === "/health") {
   return sendJson(res, 200, {
     success: true,
@@ -116,7 +117,7 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     console.error("SERVER ERROR:", err);
 
-    if (res.headersSent) {
+    if (res.writableEnded) {
       return;
     }
 

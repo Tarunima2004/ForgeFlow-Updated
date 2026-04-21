@@ -8,7 +8,7 @@ function toSafeUser(user) {
 }
 
 async function requireAuth(req) {
-  const authHeader = req.headers.authorization || "";
+  const authHeader = req.headers.authorization;
 
   // ✅ Case 1: No header
   if (!authHeader) {
@@ -27,11 +27,15 @@ async function requireAuth(req) {
     throw new HttpError(401, "Authorization token missing", "AUTH_REQUIRED");
   }
 
-  // ✅ CRITICAL FIX: wrap token verification
   let payload;
+
   try {
     payload = verifyAuthToken(token);
   } catch (err) {
+    // ✅ IMPROVED: preserve original error
+    if (err instanceof HttpError) {
+      throw err;
+    }
     throw new HttpError(401, "Invalid token", "INVALID_TOKEN");
   }
 
@@ -46,6 +50,7 @@ async function requireAuth(req) {
   req.user = safeUser;
   return safeUser;
 }
+console.log("HEADERS RECEIVED:", req.headers);
 
 module.exports = {
   requireAuth,
