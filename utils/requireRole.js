@@ -1,11 +1,17 @@
 const { HttpError } = require("./errors");
 
-function requireRole(req, allowedRoles) {
-  if (!req.user) {
+function requireRole(user, allowedRoles) {
+  // ✅ FIX 1: user instead of req.user
+  if (!user) {
     throw new HttpError(401, "Authentication required", "AUTH_REQUIRED");
   }
 
-  if (!Array.isArray(allowedRoles) || allowedRoles.length === 0) {
+  // ✅ FIX 2: allow single role OR array
+  if (!Array.isArray(allowedRoles)) {
+    allowedRoles = [allowedRoles];
+  }
+
+  if (allowedRoles.length === 0) {
     throw new HttpError(
       500,
       "Allowed roles not configured",
@@ -13,7 +19,8 @@ function requireRole(req, allowedRoles) {
     );
   }
 
-  if (!allowedRoles.includes(req.user.role)) {
+  // ✅ FIX 3: check user.role instead of req.user.role
+  if (!allowedRoles.includes(user.role)) {
     throw new HttpError(403, "Forbidden", "FORBIDDEN");
   }
 }

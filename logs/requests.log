@@ -18,3 +18,10 @@
 {"time":"2026-04-16T12:07:07.366Z","method":"POST","path":"/backup","statusCode":401,"duration":276}
 {"time":"2026-04-16T12:07:52.338Z","method":"POST","path":"/backup","statusCode":401,"duration":472}
 {"time":"2026-04-16T12:08:47.972Z","method":"POST","path":"/backup","statusCode":401,"duration":40}
+{"time":"2026-04-24T09:25:23.759Z","method":"POST","path":"/auth/login","statusCode":200,"duration":284}
+{"time":"2026-04-24T09:26:57.924Z","method":"POST","path":"/backup","statusCode":401,"duration":15}
+{"time":"2026-04-24T09:36:28.694Z","method":"POST","path":"/backup","statusCode":401,"duration":59}
+{"time":"2026-04-24T09:38:17.167Z","method":"POST","path":"/backup","statusCode":401,"duration":22}
+{"time":"2026-04-24T09:38:36.759Z","method":"POST","path":"/backup","statusCode":401,"duration":85}
+{"time":"2026-04-24T12:08:26.102Z","method":"POST","path":"/auth/login","statusCode":200,"duration":553}
+{"time":"2026-04-24T12:09:32.724Z","method":"POST","path":"/backup","statusCode":200,"duration":241}

@@ -8,6 +8,11 @@ function toSafeUser(user) {
 }
 
 async function requireAuth(req) {
+  console.log("AUTH HEADER RAW:", JSON.stringify(req.headers.authorization));
+
+  // ✅ MOVED HERE (this is the ONLY change)
+  console.log("HEADERS RECEIVED:", req.headers);
+
   const authHeader = req.headers.authorization;
 
   // ✅ Case 1: No header
@@ -32,7 +37,6 @@ async function requireAuth(req) {
   try {
     payload = verifyAuthToken(token);
   } catch (err) {
-    // ✅ IMPROVED: preserve original error
     if (err instanceof HttpError) {
       throw err;
     }
@@ -50,7 +54,6 @@ async function requireAuth(req) {
   req.user = safeUser;
   return safeUser;
 }
-console.log("HEADERS RECEIVED:", req.headers);
 
 module.exports = {
   requireAuth,
