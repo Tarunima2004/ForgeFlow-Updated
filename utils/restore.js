@@ -1,21 +1,25 @@
 const fs = require("fs");
 const path = require("path");
 
-function restoreBackup(filePath) {
-  if (!fs.existsSync(filePath)) {
-    throw new Error("Backup file not found");
+function restoreBackup(folderPath) {
+  if (!fs.existsSync(folderPath)) {
+    throw new Error("Backup folder not found");
   }
 
-  const data = fs.readFileSync(filePath, "utf-8");
+  const files = fs.readdirSync(folderPath);
 
-  const parsed = JSON.parse(data);
+  // Loop through each JSON file
+  files.forEach((file) => {
+    const fullPath = path.join(folderPath, file);
 
-  // You will replace your data source here
-  // Example:
-  fs.writeFileSync(
-    path.join(__dirname, "../data/db.json"),
-    JSON.stringify(parsed, null, 2)
-  );
+    // Read each file
+    const data = fs.readFileSync(fullPath, "utf-8");
+
+    // Write back to main data folder
+    const targetPath = path.join(__dirname, "../data", file);
+
+    fs.writeFileSync(targetPath, data);
+  });
 
   return {
     message: "Restore completed successfully",
