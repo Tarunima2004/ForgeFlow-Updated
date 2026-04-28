@@ -11,6 +11,7 @@ const { handleUsersRoutes } = require("./routes/users.routes");
 const { handleAuthRoutes } = require("./routes/auth.routes");
 const { handleBackupRoutes } = require("./routes/backup.routes");
 const { handleRestoreRoutes } = require("./routes/restore.routes");
+const { handleDocsRoutes } = require("./routes/docsRoutes");
 
 const PORT = process.env.PORT || 3000;
 
@@ -82,6 +83,8 @@ const server = http.createServer(async (req, res) => {
     },
   });
 }
+
+if (await handleDocsRoutes(req, res, path)) return;
 
     if (req.method === "POST" && path === "/echo") {
       if (!isJsonRequest(req)) {

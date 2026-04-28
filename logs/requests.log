@@ -33,3 +33,11 @@
 {"time":"2026-04-25T11:55:32.738Z","method":"POST","path":"/restore","statusCode":500,"duration":114}
 {"time":"2026-04-25T12:03:17.439Z","method":"POST","path":"/restore","statusCode":500,"duration":263}
 {"time":"2026-04-25T12:05:32.722Z","method":"POST","path":"/restore","statusCode":200,"duration":481}
+{"time":"2026-04-27T12:11:41.505Z","method":"POST","path":"/docs","statusCode":500,"duration":113}
+{"time":"2026-04-27T12:12:27.319Z","method":"GET","path":"/docs","statusCode":500,"duration":2}
+{"time":"2026-04-27T12:12:30.131Z","method":"GET","path":"/docs","statusCode":500,"duration":3}
+{"time":"2026-04-28T09:53:58.312Z","method":"GET","path":"/docs","statusCode":500,"duration":293}
+{"time":"2026-04-28T10:34:48.021Z","method":"GET","path":"/docs","statusCode":500,"duration":54}
+{"time":"2026-04-28T10:34:49.419Z","method":"GET","path":"/docs","statusCode":500,"duration":52}
+{"time":"2026-04-28T10:42:06.573Z","method":"GET","path":"/docs","statusCode":500,"duration":54}
+{"time":"2026-04-28T10:42:22.692Z","method":"GET","path":"/docs","statusCode":200,"duration":127}
