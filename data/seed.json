@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "id": "u1",
+      "name": "Admin User",
+      "email": "admin@example.com",
+      "password": "hashed_password",
+      "role": "admin"
+    }
+  ],
+  "projects": [
+    {
+      "id": "p1",
+      "name": "ForgeFlow Core",
+      "description": "Main project"
+    }
+  ],
+  "issues": [
+    {
+      "id": "i1",
+      "title": "Initial Setup",
+      "projectId": "p1",
+      "status": "open"
+    }
+  ]
+}

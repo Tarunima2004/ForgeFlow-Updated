@@ -12,6 +12,7 @@ const { handleAuthRoutes } = require("./routes/auth.routes");
 const { handleBackupRoutes } = require("./routes/backup.routes");
 const { handleRestoreRoutes } = require("./routes/restore.routes");
 const { handleDocsRoutes } = require("./routes/docsRoutes");
+const { seedData } = require("./utils/seedData");
 
 const PORT = process.env.PORT || 3000;
 
@@ -129,6 +130,7 @@ if (await handleDocsRoutes(req, res, path)) return;
     return sendError(res, err);
   }
 });
+seedData();
 
 server.listen(PORT, () => {
   console.log(`ForgeFlow server running on http://localhost:${PORT}`);
