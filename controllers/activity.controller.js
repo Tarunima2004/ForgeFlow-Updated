@@ -4,8 +4,8 @@ const { requireRole } = require("../utils/requireRole");
 const { listActivityByEntity } = require("../services/activity.service");
 
 async function getIssueActivity(req, res, issueId) {
-  await requireAuth(req);
-  requireRole(req, ["admin"]);
+  const user = await requireAuth(req);   // ✅ get user
+  requireRole(user, ["admin"]);          // ✅ pass user
 
   const activity = await listActivityByEntity("issue", issueId);
 
@@ -16,8 +16,8 @@ async function getIssueActivity(req, res, issueId) {
 }
 
 async function getProjectActivity(req, res, projectId) {
-  await requireAuth(req);
-  requireRole(req, ["admin"]);
+  const user = await requireAuth(req);  // ✅ get user
+  requireRole(user, ["admin"]);          // ✅ pass user
 
   const activity = await listActivityByEntity("project", projectId);
 

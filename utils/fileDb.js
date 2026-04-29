@@ -9,6 +9,9 @@ const COMMENTS_FILE = path.join(DATA_DIR, "comments.json");
 const ACTIVITY_FILE = path.join(DATA_DIR, "activity.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 
+/**
+ * Ensure directory + file exists
+ */
 async function ensureFile(file, defaultData = "[]") {
   await fs.mkdir(DATA_DIR, { recursive: true });
 
@@ -19,25 +22,50 @@ async function ensureFile(file, defaultData = "[]") {
   }
 }
 
+/**
+ * Read JSON safely from file
+ */
 async function readJsonFile(file) {
   await ensureFile(file);
-  const raw = await fs.readFile(file, "utf-8");
 
   try {
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
+    const raw = await fs.readFile(file, "utf-8");
+
+    // Handle empty file case
+    if (!raw || !raw.trim()) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.error(`❌ Error reading file ${file}:`, err.message);
+
+    // Reset corrupted file
     await fs.writeFile(file, "[]", "utf-8");
+
     return [];
   }
 }
 
+/**
+ * Write JSON safely to file
+ */
 async function writeJsonFile(file, data) {
   await ensureFile(file);
-  await fs.writeFile(file, JSON.stringify(data, null, 2), "utf-8");
+
+  try {
+    await fs.writeFile(file, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error(`❌ Error writing file ${file}:`, err.message);
+    throw err;
+  }
 }
 
-/* Issues */
+/* ===========================
+   Issues
+=========================== */
 
 async function readIssues() {
   return readJsonFile(ISSUES_FILE);
@@ -47,7 +75,9 @@ async function writeIssues(data) {
   return writeJsonFile(ISSUES_FILE, data);
 }
 
-/* Projects */
+/* ===========================
+   Projects
+=========================== */
 
 async function readProjects() {
   return readJsonFile(PROJECTS_FILE);
@@ -57,7 +87,9 @@ async function writeProjects(data) {
   return writeJsonFile(PROJECTS_FILE, data);
 }
 
-/* Comments */
+/* ===========================
+   Comments
+=========================== */
 
 async function readComments() {
   return readJsonFile(COMMENTS_FILE);
@@ -67,7 +99,9 @@ async function writeComments(data) {
   return writeJsonFile(COMMENTS_FILE, data);
 }
 
-/* Activity Logs */
+/* ===========================
+   Activity Logs
+=========================== */
 
 async function readActivity() {
   return readJsonFile(ACTIVITY_FILE);
@@ -77,7 +111,9 @@ async function writeActivity(data) {
   return writeJsonFile(ACTIVITY_FILE, data);
 }
 
-/* Users */
+/* ===========================
+   Users
+=========================== */
 
 async function readUsers() {
   return readJsonFile(USERS_FILE);

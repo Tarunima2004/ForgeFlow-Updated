@@ -26,7 +26,7 @@ function parseDueBefore(value) {
 
 async function createIssue(req, res) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const body = await readJsonBody(req);
 
@@ -66,7 +66,7 @@ async function createIssue(req, res) {
 
 async function createIssueForProject(req, res, projectId) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const body = await readJsonBody(req);
 
@@ -102,7 +102,7 @@ async function createIssueForProject(req, res, projectId) {
 
 async function listIssues(req, res, url) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const status = url.searchParams.get("status");
   const q = url.searchParams.get("q");
@@ -231,7 +231,7 @@ async function listIssues(req, res, url) {
 
 async function listIssuesForProject(req, res, projectId) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const issues = await issuesService.listIssuesByProjectId(projectId);
 
@@ -243,7 +243,7 @@ async function listIssuesForProject(req, res, projectId) {
 
 async function getIssueById(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const issue = await issuesService.getIssueById(id);
   return sendJson(res, 200, { success: true, data: issue });
@@ -251,7 +251,7 @@ async function getIssueById(req, res, id) {
 
 async function updateIssue(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const body = await readJsonBody(req);
 
@@ -285,7 +285,9 @@ async function updateIssue(req, res, id) {
   if (body.dueDate !== undefined) {
     updates.dueDate = body.dueDate;
   }
-
+  if (body.assignedTo !== undefined) {
+  updates.assignedTo = body.assignedTo;
+}
   const updated = await issuesService.updateIssue(id, updates, req.user);
 
   return sendJson(res, 200, { success: true, data: updated });
@@ -293,7 +295,7 @@ async function updateIssue(req, res, id) {
 
 async function assignIssue(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const body = await readJsonBody(req);
 
@@ -312,7 +314,7 @@ async function assignIssue(req, res, id) {
 
 async function deleteIssue(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const deleted = await issuesService.deleteIssue(id);
   return sendJson(res, 200, { success: true, data: deleted });

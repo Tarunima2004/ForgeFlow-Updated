@@ -138,7 +138,7 @@ async function getIssueById(id) {
 // ✅ Update issue
 async function updateIssue(
   id,
-  { title, status, labels, priority, dueDate },
+  { title, status, labels, priority, dueDate, assignedTo},
   currentUser
 ) {
   const issues = await readIssues();
@@ -167,6 +167,10 @@ async function updateIssue(
         ? validateDueDate(dueDate)
         : issue.dueDate || null,
     labels: labels !== undefined ? labels : issue.labels || [],
+    assignedTo:
+    assignedTo !== undefined
+      ? (assignedTo === null ? null : validateAssignedTo(assignedTo))
+      : issue.assignedTo,
     updatedAt: new Date().toISOString(),
     updatedBy: getUserSnapshot(currentUser),
   };

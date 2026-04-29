@@ -8,7 +8,7 @@ const projectsService = require("../services/projects.service");
 
 async function createProject(req, res) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const body = await readJsonBody(req);
   const name = assertRequiredString(body.name, "name");
@@ -25,7 +25,7 @@ async function createProject(req, res) {
 
 async function listProjects(req, res) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const projects = await projectsService.listProjects();
 
@@ -37,7 +37,7 @@ async function listProjects(req, res) {
 
 async function getProject(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const project = await projectsService.getProjectById(id);
 
@@ -49,7 +49,7 @@ async function getProject(req, res, id) {
 
 async function getProjectSummary(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin", "member"]);
+  requireRole(req.user, ["admin", "member"]);
 
   const summary = await projectsService.getProjectSummaryById(id);
 
@@ -61,7 +61,7 @@ async function getProjectSummary(req, res, id) {
 
 async function patchProject(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const body = await readJsonBody(req);
 
@@ -81,7 +81,7 @@ async function patchProject(req, res, id) {
 
 async function deleteProject(req, res, id) {
   await requireAuth(req);
-  requireRole(req, ["admin"]);
+  requireRole(req.user, ["admin"]);
 
   const result = await projectsService.deleteProjectById(id);
 

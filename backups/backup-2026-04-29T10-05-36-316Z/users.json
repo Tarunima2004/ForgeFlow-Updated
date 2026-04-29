@@ -268,23 +268,5 @@
     "role": "admin",
     "createdAt": "2026-04-29T07:59:44.766Z",
     "updatedAt": "2026-04-29T07:59:44.766Z"
-  },
-  {
-    "id": "995f4d0c-f644-4045-9a12-df44d867987f",
-    "name": "Admin User",
-    "email": "niharika@test.com",
-    "password": "7328135208bfe1e998473a4c210a008d:875c3c7210486c379c64983bcc485e1067248fb27b67de7fd6932e5e16ff9336817b7115ebd10e58f28e5ba424838a826e11bec9f52a89733389d3822793a3a9",
-    "role": "member",
-    "createdAt": "2026-04-29T10:13:48.676Z",
-    "updatedAt": "2026-04-29T10:13:48.676Z"
-  },
-  {
-    "id": "ce33d64a-6959-41fc-93f5-87da424c34be",
-    "name": "User",
-    "email": "niharika2004@test.com",
-    "password": "d2944fafa50e97dbcb21dc2fa3bb7014:cab0e96d1cfca44e7c551b73f438330cb23992f556d8f8289801fe57ad1a6aa44ee1a053738c24639be62bee8a1d56c02ff8717c94de793b27be1c86865cb397",
-    "role": "member",
-    "createdAt": "2026-04-29T10:16:35.096Z",
-    "updatedAt": "2026-04-29T10:16:35.096Z"
   }
 ]

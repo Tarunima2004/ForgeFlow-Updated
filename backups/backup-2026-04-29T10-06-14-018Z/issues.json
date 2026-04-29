@@ -559,63 +559,17 @@
     }
   },
   {
-    "id": "5c593bc8-442c-48bf-a10d-8c3c302f876c",
-    "projectId": "ed248e6f-4c2b-42f3-a610-dcce0fbbc1a7",
-    "title": "Issue 1",
+    "id": "63a17205-2c04-407a-8857-2ceda5ae89c0",
+    "projectId": "479c34d6-ec38-4ad8-a02f-e2adfdee9c5f",
+    "title": "Bug in login",
     "status": "todo",
     "priority": "medium",
     "dueDate": null,
     "rank": 1,
     "labels": [],
     "assignedTo": null,
-    "createdAt": "2026-04-29T10:38:11.001Z",
-    "updatedAt": "2026-04-29T10:38:11.001Z",
-    "createdBy": {
-      "id": "ed9cbd1a-1c70-47bb-a6fd-f81576801070",
-      "name": "Test User",
-      "email": "test1@example.com"
-    },
-    "updatedBy": {
-      "id": "ed9cbd1a-1c70-47bb-a6fd-f81576801070",
-      "name": "Test User",
-      "email": "test1@example.com"
-    }
-  },
-  {
-    "id": "d22799f5-64bc-469f-9544-e017aa5a4693",
-    "projectId": "ed248e6f-4c2b-42f3-a610-dcce0fbbc1a7",
-    "title": "Issue 2",
-    "status": "todo",
-    "priority": "medium",
-    "dueDate": null,
-    "rank": 2,
-    "labels": [],
-    "assignedTo": null,
-    "createdAt": "2026-04-29T10:38:19.574Z",
-    "updatedAt": "2026-04-29T10:38:19.574Z",
-    "createdBy": {
-      "id": "ed9cbd1a-1c70-47bb-a6fd-f81576801070",
-      "name": "Test User",
-      "email": "test1@example.com"
-    },
-    "updatedBy": {
-      "id": "ed9cbd1a-1c70-47bb-a6fd-f81576801070",
-      "name": "Test User",
-      "email": "test1@example.com"
-    }
-  },
-  {
-    "id": "e9d6aaba-820b-459b-9ad0-5a551adb3904",
-    "projectId": "ed248e6f-4c2b-42f3-a610-dcce0fbbc1a7",
-    "title": "Issue 4",
-    "status": "todo",
-    "priority": "medium",
-    "dueDate": null,
-    "rank": 3,
-    "labels": [],
-    "assignedTo": null,
-    "createdAt": "2026-04-29T10:41:21.888Z",
-    "updatedAt": "2026-04-29T10:41:21.888Z",
+    "createdAt": "2026-04-29T09:50:30.309Z",
+    "updatedAt": "2026-04-29T09:50:30.309Z",
     "createdBy": {
       "id": "ed9cbd1a-1c70-47bb-a6fd-f81576801070",
       "name": "Test User",
