@@ -1,30 +1,45 @@
-const crypto = require("crypto");
-const { readActivity, writeActivity } = require("../utils/fileDb");
+const pool = require("../utils/db");
 
+// ✅ CREATE ACTIVITY LOG
 async function logActivity({ entityType, entityId, action, message }) {
-  const activity = await readActivity();
+  const result = await pool.query(
+    `INSERT INTO activity (entity_type, entity_id, action, message)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [entityType, entityId, action, message || null]
+  );
 
-  const entry = {
-    id: crypto.randomUUID(),
-    entityType,
-    entityId,
-    action,
-    message,
-    createdAt: new Date().toISOString(),
+  const row = result.rows[0];
+
+  // keep same response structure as before
+  return {
+    id: row.id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    action: row.action,
+    message: row.message,
+    createdAt: row.created_at,
   };
-
-  activity.push(entry);
-  await writeActivity(activity);
-
-  return entry;
 }
 
+// ✅ LIST ACTIVITY BY ENTITY
 async function listActivityByEntity(entityType, entityId) {
-  const activity = await readActivity();
-
-  return activity.filter(
-    (entry) => entry.entityType === entityType && entry.entityId === entityId
+  const result = await pool.query(
+    `SELECT * FROM activity
+     WHERE entity_type = $1 AND entity_id = $2
+     ORDER BY created_at DESC`,
+    [entityType, entityId]
   );
+
+  // map DB → old format
+  return result.rows.map((row) => ({
+    id: row.id,
+    entityType: row.entity_type,
+    entityId: row.entity_id,
+    action: row.action,
+    message: row.message,
+    createdAt: row.created_at,
+  }));
 }
 
 module.exports = {

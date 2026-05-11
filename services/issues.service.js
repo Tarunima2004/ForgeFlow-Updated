@@ -1,6 +1,6 @@
 const crypto = require("crypto");
+const pool = require("../utils/db");
 const { assertFound } = require("../utils/errors");
-const { readIssues, writeIssues, readProjects } = require("../utils/fileDb");
 const { getUserSnapshot } = require("../utils/authUserSnapshot");
 const {
   assertRequiredString,
@@ -23,7 +23,6 @@ function validatePriority(priority) {
   if (priority === undefined) return "medium";
 
   const p = String(priority).trim().toLowerCase();
-
   assertOneOf(p, "priority", ["low", "medium", "high", "critical"]);
 
   return p;
@@ -31,11 +30,7 @@ function validatePriority(priority) {
 
 function validateDueDate(dueDate) {
   const validated = assertValidDate(dueDate, "dueDate");
-
-  if (validated === undefined || validated === null) {
-    return null;
-  }
-
+  if (validated === undefined || validated === null) return null;
   return new Date(validated).toISOString();
 }
 
@@ -44,70 +39,67 @@ function validateAssignedTo(assignedTo) {
   return assertMinLength(a, "assignedTo", 2);
 }
 
+// ✅ Ensure project exists (DB version)
 async function ensureProjectExists(projectId) {
-  const projects = await readProjects();
+  console.log("PROJECT ID CHECK:", projectId); // ✅ ADDED
 
-  const project = projects.find((p) => p.id === projectId);
+  const result = await pool.query(
+    "SELECT id FROM projects WHERE id = $1",
+    [projectId]
+  );
 
-  assertFound(project, "Project not found");
+  console.log("DB RESULT:", result.rows); // ✅ ADDED
 
-  return project;
+  assertFound(result.rows[0], "Project not found");
 }
+// ✅ Get next rank (DB version)
+async function getNextRankForProject(projectId) {
+  const result = await pool.query(
+    "SELECT MAX(rank) as max_rank FROM issues WHERE project_id = $1",
+    [projectId]
+  );
 
-function getNextRankForProject(issues, projectId) {
-  const projectIssues = issues.filter((issue) => issue.projectId === projectId);
-
-  if (projectIssues.length === 0) {
-    return 1;
-  }
-
-  const maxRank = projectIssues.reduce((max, issue) => {
-    const rank = typeof issue.rank === "number" ? issue.rank : 0;
-    return rank > max ? rank : max;
-  }, 0);
-
-  return maxRank + 1;
+  const max = result.rows[0].max_rank;
+  return max ? max + 1 : 1;
 }
-
 // ✅ Create issue
 async function createIssue(
-  {
-    title,
-    projectId = null,
-    labels = [],
-    priority,
-    dueDate,
-    assignedTo,
-  },
+  { title, projectId = null, labels = [], priority, dueDate, assignedTo },
   currentUser
 ) {
+  console.log("BODY RECEIVED:", { title, projectId }); // ✅ ADDED
+
   if (projectId) {
+    projectId = projectId.trim(); // ✅ ADDED (fix hidden space bug)
     await ensureProjectExists(projectId);
   }
-
-  const issues = await readIssues();
   const now = new Date().toISOString();
-  const userSnapshot = getUserSnapshot(currentUser);
+  const userId = currentUser.id;
 
-  const issue = {
-    id: crypto.randomUUID(),
-    projectId,
-    title: validateTitle(title),
-    status: "todo",
-    priority: validatePriority(priority),
-    dueDate: validateDueDate(dueDate),
-    rank: projectId ? getNextRankForProject(issues, projectId) : null,
-    labels,
-    assignedTo: assignedTo !== undefined ? validateAssignedTo(assignedTo) : null,
-    createdAt: now,
-    updatedAt: now,
-    createdBy: userSnapshot,
-    updatedBy: userSnapshot,
-  };
+  const rank = projectId ? await getNextRankForProject(projectId) : null;
 
-  issues.push(issue);
+  const result = await pool.query(
+    `INSERT INTO issues
+     (id, title, project_id, status, priority, due_date, rank, assigned_to, created_by, updated_by, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     RETURNING *`,
+    [
+      crypto.randomUUID(),
+      validateTitle(title),
+      projectId,
+      "todo",
+      validatePriority(priority),
+      validateDueDate(dueDate),
+      rank,
+      assignedTo !== undefined ? validateAssignedTo(assignedTo) : null,
+      userId,
+      userId,
+      now,
+      now,
+    ]
+  );
 
-  await writeIssues(issues);
+  const issue = result.rows[0];
 
   await logActivity({
     entityType: "issue",
@@ -121,15 +113,18 @@ async function createIssue(
 
 // ✅ List all issues
 async function listIssues() {
-  return readIssues();
+  const result = await pool.query("SELECT * FROM issues");
+  return result.rows;
 }
 
 // ✅ Get issue by id
 async function getIssueById(id) {
-  const issues = await readIssues();
+  const result = await pool.query(
+    "SELECT * FROM issues WHERE id = $1",
+    [id]
+  );
 
-  const issue = issues.find((i) => i.id === id);
-
+  const issue = result.rows[0];
   assertFound(issue, "Issue not found");
 
   return issue;
@@ -138,46 +133,49 @@ async function getIssueById(id) {
 // ✅ Update issue
 async function updateIssue(
   id,
-  { title, status, labels, priority, dueDate, assignedTo},
+  { title, status, labels, priority, dueDate, assignedTo },
   currentUser
 ) {
-  const issues = await readIssues();
+  const existing = await getIssueById(id);
 
-  const index = issues.findIndex((i) => i.id === id);
-  const issue = issues[index];
-
-  assertFound(issue, "Issue not found");
-
-  const oldStatus = issue.status;
+  const oldStatus = existing.status;
   const nextStatus =
     status !== undefined
       ? (assertAllowedStatus(status), status)
-      : issue.status;
+      : existing.status;
 
-  const updatedIssue = {
-    ...issue,
-    title: title !== undefined ? validateTitle(title) : issue.title,
-    status: nextStatus,
-    priority:
+  const updated = await pool.query(
+    `UPDATE issues SET
+     title = $1,
+     status = $2,
+     priority = $3,
+     due_date = $4,
+     assigned_to = $5,
+     updated_by = $6,
+     updated_at = $7
+     WHERE id = $8
+     RETURNING *`,
+    [
+      title !== undefined ? validateTitle(title) : existing.title,
+      nextStatus,
       priority !== undefined
         ? validatePriority(priority)
-        : issue.priority || "medium",
-    dueDate:
+        : existing.priority || "medium",
       dueDate !== undefined
         ? validateDueDate(dueDate)
-        : issue.dueDate || null,
-    labels: labels !== undefined ? labels : issue.labels || [],
-    assignedTo:
-    assignedTo !== undefined
-      ? (assignedTo === null ? null : validateAssignedTo(assignedTo))
-      : issue.assignedTo,
-    updatedAt: new Date().toISOString(),
-    updatedBy: getUserSnapshot(currentUser),
-  };
+        : existing.due_date || null,
+      assignedTo !== undefined
+        ? assignedTo === null
+          ? null
+          : validateAssignedTo(assignedTo)
+        : existing.assigned_to,
+      currentUser.id,
+      new Date().toISOString(),
+      id,
+    ]
+  );
 
-  issues[index] = updatedIssue;
-
-  await writeIssues(issues);
+  const updatedIssue = updated.rows[0];
 
   const statusChanged = oldStatus !== updatedIssue.status;
 
@@ -195,47 +193,43 @@ async function updateIssue(
 
 // ✅ Assign issue
 async function assignIssueById(id, { assignedTo }, currentUser) {
-  const issues = await readIssues();
+  const updated = await pool.query(
+    `UPDATE issues SET
+     assigned_to = $1,
+     updated_by = $2,
+     updated_at = $3
+     WHERE id = $4
+     RETURNING *`,
+    [
+      validateAssignedTo(assignedTo),
+      currentUser.id,
+      new Date().toISOString(),
+      id,
+    ]
+  );
 
-  const index = issues.findIndex((i) => i.id === id);
-  const issue = issues[index];
-
+  const issue = updated.rows[0];
   assertFound(issue, "Issue not found");
-
-  const updatedIssue = {
-    ...issue,
-    assignedTo: validateAssignedTo(assignedTo),
-    updatedAt: new Date().toISOString(),
-    updatedBy: getUserSnapshot(currentUser),
-  };
-
-  issues[index] = updatedIssue;
-
-  await writeIssues(issues);
 
   await logActivity({
     entityType: "issue",
-    entityId: updatedIssue.id,
+    entityId: issue.id,
     action: "issue_assigned",
-    message: `Issue assigned to ${updatedIssue.assignedTo}`,
+    message: `Issue assigned to ${issue.assigned_to}`,
   });
 
-  return updatedIssue;
+  return issue;
 }
 
 // ✅ Delete issue
 async function deleteIssue(id) {
-  const issues = await readIssues();
+  const result = await pool.query(
+    "DELETE FROM issues WHERE id = $1 RETURNING *",
+    [id]
+  );
 
-  const index = issues.findIndex((i) => i.id === id);
-
-  const issue = issues[index];
-
+  const issue = result.rows[0];
   assertFound(issue, "Issue not found");
-
-  issues.splice(index, 1);
-
-  await writeIssues(issues);
 
   await logActivity({
     entityType: "issue",
@@ -247,21 +241,18 @@ async function deleteIssue(id) {
   return issue;
 }
 
-// ✅ List issues by project
+// ✅ List issues by project (sorted by rank)
 async function listIssuesByProjectId(projectId) {
   await ensureProjectExists(projectId);
 
-  const issues = await readIssues();
+  const result = await pool.query(
+    `SELECT * FROM issues
+     WHERE project_id = $1
+     ORDER BY rank ASC NULLS LAST`,
+    [projectId]
+  );
 
-  return issues
-    .filter((i) => i.projectId === projectId)
-    .sort((a, b) => {
-      const rankA =
-        typeof a.rank === "number" ? a.rank : Number.MAX_SAFE_INTEGER;
-      const rankB =
-        typeof b.rank === "number" ? b.rank : Number.MAX_SAFE_INTEGER;
-      return rankA - rankB;
-    });
+  return result.rows;
 }
 
 module.exports = {

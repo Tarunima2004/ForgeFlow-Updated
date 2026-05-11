@@ -1,11 +1,6 @@
 const crypto = require("crypto");
+const pool = require("../utils/db");
 const { HttpError, assertFound } = require("../utils/errors");
-const {
-  readProjects,
-  writeProjects,
-  readIssues,
-  writeIssues,
-} = require("../utils/fileDb");
 const { getUserSnapshot } = require("../utils/authUserSnapshot");
 const { logActivity } = require("./activity.service");
 
@@ -13,41 +8,29 @@ function validateName(name) {
   const n = (name || "").trim();
 
   if (!n) {
-    throw new HttpError(
-  400,
-  "name is required",
-  ERROR_CODES.VALIDATION_ERROR
-);
+    throw new HttpError(400, "name is required", "VALIDATION_ERROR");
   }
 
   if (n.length < 3) {
-    throw new HttpError(
-      400,
-      "name must be at least 3 chars",
-      "VALIDATION_ERROR"
-    );
+    throw new HttpError(400, "name must be at least 3 chars", "VALIDATION_ERROR");
   }
 
   return n;
 }
 
+// ✅ CREATE PROJECT
 async function createProject({ name }, currentUser) {
-  const projects = await readProjects();
   const now = new Date().toISOString();
-  const userSnapshot = getUserSnapshot(currentUser);
+  const userId = currentUser.id;
 
-  const project = {
-    id: crypto.randomUUID(),
-    name: validateName(name),
-    createdAt: now,
-    updatedAt: now,
-    createdBy: userSnapshot,
-    updatedBy: userSnapshot,
-  };
+  const result = await pool.query(
+    `INSERT INTO projects (id, name, created_by, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [crypto.randomUUID(), validateName(name), userId, now, now]
+  );
 
-  projects.push(project);
-
-  await writeProjects(projects);
+  const project = result.rows[0];
 
   await logActivity({
     entityType: "project",
@@ -59,24 +42,35 @@ async function createProject({ name }, currentUser) {
   return project;
 }
 
+// ✅ LIST PROJECTS
 async function listProjects() {
-  return readProjects();
+  const result = await pool.query("SELECT * FROM projects");
+  return result.rows;
 }
 
+// ✅ GET PROJECT BY ID
 async function getProjectById(id) {
-  const projects = await readProjects();
-  const project = projects.find((p) => p.id === id);
+  const result = await pool.query(
+    "SELECT * FROM projects WHERE id = $1",
+    [id]
+  );
 
+  const project = result.rows[0];
   assertFound(project, "Project not found");
 
   return project;
 }
 
+// ✅ PROJECT SUMMARY (converted logic)
 async function getProjectSummaryById(id) {
   const project = await getProjectById(id);
-  const issues = await readIssues();
 
-  const projectIssues = issues.filter((issue) => issue.projectId === id);
+  const result = await pool.query(
+    "SELECT * FROM issues WHERE project_id = $1",
+    [id]
+  );
+
+  const projectIssues = result.rows;
 
   const statusBreakdown = {
     todo: 0,
@@ -105,8 +99,8 @@ async function getProjectSummaryById(id) {
     }
 
     if (
-      issue.dueDate &&
-      new Date(issue.dueDate) < now &&
+      issue.due_date &&
+      new Date(issue.due_date) < now &&
       issue.status !== "done"
     ) {
       overdueIssues += 1;
@@ -123,24 +117,18 @@ async function getProjectSummaryById(id) {
   };
 }
 
+// ✅ UPDATE PROJECT
 async function updateProjectById(id, { name }, currentUser) {
-  const projects = await readProjects();
+  const result = await pool.query(
+    `UPDATE projects
+     SET name = $1, updated_at = $2
+     WHERE id = $3
+     RETURNING *`,
+    [validateName(name), new Date().toISOString(), id]
+  );
 
-  const index = projects.findIndex((p) => p.id === id);
-  const existingProject = projects[index];
-
-  assertFound(existingProject, "Project not found");
-
-  const updatedProject = {
-    ...existingProject,
-    name: validateName(name),
-    updatedAt: new Date().toISOString(),
-    updatedBy: getUserSnapshot(currentUser),
-  };
-
-  projects[index] = updatedProject;
-
-  await writeProjects(projects);
+  const updatedProject = result.rows[0];
+  assertFound(updatedProject, "Project not found");
 
   await logActivity({
     entityType: "project",
@@ -152,20 +140,23 @@ async function updateProjectById(id, { name }, currentUser) {
   return updatedProject;
 }
 
+// ✅ DELETE PROJECT (DB handles cascade)
 async function deleteProjectById(id) {
-  const projects = await readProjects();
-  const issues = await readIssues();
+  // Count issues before delete (for response)
+  const issuesResult = await pool.query(
+    "SELECT COUNT(*) FROM issues WHERE project_id = $1",
+    [id]
+  );
 
-  const project = projects.find((p) => p.id === id);
+  const deletedIssuesCount = parseInt(issuesResult.rows[0].count, 10);
 
+  const result = await pool.query(
+    "DELETE FROM projects WHERE id = $1 RETURNING *",
+    [id]
+  );
+
+  const project = result.rows[0];
   assertFound(project, "Project not found");
-
-  const updatedProjects = projects.filter((p) => p.id !== id);
-  const updatedIssues = issues.filter((issue) => issue.projectId !== id);
-
-  const deletedIssuesCount = issues.length - updatedIssues.length;
-
-  await Promise.all([writeProjects(updatedProjects), writeIssues(updatedIssues)]);
 
   await logActivity({
     entityType: "project",

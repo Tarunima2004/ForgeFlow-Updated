@@ -286,5 +286,50 @@
     "role": "member",
     "createdAt": "2026-04-29T10:16:35.096Z",
     "updatedAt": "2026-04-29T10:16:35.096Z"
+  },
+  {
+    "id": "dc010b4a-7bff-4217-992f-1a3199c7cffb",
+    "name": "DB User",
+    "email": "dbuser2@example.com",
+    "password": "016ea68954b6ce039cdc47c61bfa780e:6604b1be2728723ae01ac0c0a9662730a9d75071a431fef9944de5e217b3755c958b0452236159637a25902844dda27a7ccb41f64900536bf1e7dda484db0796",
+    "role": "admin",
+    "createdAt": "2026-05-04T11:39:30.222Z",
+    "updatedAt": "2026-05-04T11:39:30.222Z"
+  },
+  {
+    "id": "8cf3f224-f264-4574-807c-baa139aa8c58",
+    "name": "DB User",
+    "email": "dbuser29@example.com",
+    "password": "c03db0a5e35ec1baae287ee13b81bc78:fc7fe71f53c7d83badde90de9c5f9814f247bec83491f45d3107de8de693d677425b228c11c5e70d0b7e8d6bc9615f3fff1b156fd98a025ec2a2de040b07220b",
+    "role": "admin",
+    "createdAt": "2026-05-06T06:35:13.858Z",
+    "updatedAt": "2026-05-06T06:35:13.858Z"
+  },
+  {
+    "id": "25b9fa19-90a6-48d4-b9a4-1bca83bdd79d",
+    "name": "DB User",
+    "email": "dbuser292004@example.com",
+    "password": "29c2193a2ebd9f5f9f8dceb56c925778:6d05429ac5b8868664658a37da233d6a7ccb6aec473f39ea9bd746b8a03111f6b257ab523e36f2f8f1675582facb977910756dd1c1f03c8ed53c9db1d11363d6",
+    "role": "admin",
+    "createdAt": "2026-05-06T06:54:58.822Z",
+    "updatedAt": "2026-05-06T06:54:58.822Z"
+  },
+  {
+    "id": "bf32b05e-e77a-44bb-af87-03cb400147a6",
+    "name": "DB User",
+    "email": "dbuser132007@example.com",
+    "password": "763f724af7c5bcf08d5d640c281c841c:f8a0e7d4b8cf8ec308a6959a19b9693f069d27a9791bb228e417f8c940897c1ccdf9b5f3bf0c73716426dd4eecf70e30d120ecc519f4350141e8aa357b529982",
+    "role": "admin",
+    "createdAt": "2026-05-06T06:57:36.617Z",
+    "updatedAt": "2026-05-06T06:57:36.617Z"
+  },
+  {
+    "id": "74e6e5f2-85c9-4ac9-97a0-64a06150b760",
+    "name": "DB User",
+    "email": "dbuser13@example.com",
+    "password": "9668e779a5fda6b6c6d1a156cc83225f:ef59f639eff7f95f068538b7a31b9216a0f0b639c37ae4d9bea22fa55169fc1e15c31ffd9b3be5c02ffde7ca256a3c9e02c586df5a0b10ad3e638e8098a05ba6",
+    "role": "admin",
+    "createdAt": "2026-05-06T07:00:47.352Z",
+    "updatedAt": "2026-05-06T07:00:47.352Z"
   }
 ]
