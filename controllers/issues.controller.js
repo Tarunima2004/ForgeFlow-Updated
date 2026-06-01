@@ -104,130 +104,57 @@ async function listIssues(req, res, url) {
   await requireAuth(req);
   requireRole(req.user, ["admin", "member"]);
 
+  // ✅ Query params
   const status = url.searchParams.get("status");
-  const q = url.searchParams.get("q");
-  const label = url.searchParams.get("label");
   const priority = url.searchParams.get("priority");
-  const overdue = url.searchParams.get("overdue");
-  const dueBefore = url.searchParams.get("dueBefore");
   const assignedTo = url.searchParams.get("assignedTo");
+  const q = url.searchParams.get("q"); 
 
+  // ✅ Sorting
   const sort = url.searchParams.get("sort") || "createdAt";
   const order = (url.searchParams.get("order") || "desc").toLowerCase();
 
+  // ✅ Pagination
   const page = parsePage(url.searchParams.get("page"));
   const limit = parseLimit(url.searchParams.get("limit"));
 
-  let issues = await issuesService.listIssues();
-
+  // ✅ Validation
   if (status) {
-    assertOneOf(status, "status", ["todo", "in_progress", "done"]);
-    issues = issues.filter((i) => i.status === status);
-  }
-
-  if (q) {
-    const needle = q.trim().toLowerCase();
-    issues = issues.filter((i) => i.title.toLowerCase().includes(needle));
-  }
-
-  if (label) {
-    const wantedLabels = label
-      .split(",")
-      .map((item) => item.trim().toLowerCase())
-      .filter(Boolean);
-
-    issues = issues.filter((i) => {
-      const issueLabels = Array.isArray(i.labels)
-        ? i.labels.map((item) => String(item).trim().toLowerCase())
-        : [];
-
-      return wantedLabels.every((wanted) => issueLabels.includes(wanted));
-    });
+    assertOneOf(status, "status", [
+      "todo",
+      "in_progress",
+      "done",
+    ]);
   }
 
   if (priority) {
-    const normalizedPriority = assertOneOf(priority, "priority", [
+    assertOneOf(priority, "priority", [
       "low",
       "medium",
       "high",
       "critical",
     ]);
-
-    issues = issues.filter(
-      (i) => (i.priority || "medium") === normalizedPriority
-    );
-  }
-
-  if (overdue) {
-    const normalizedOverdue = assertOneOf(overdue, "overdue", ["true", "false"]);
-
-    if (normalizedOverdue === "true") {
-      const now = new Date();
-
-      issues = issues.filter((i) => {
-        if (!i.dueDate) return false;
-
-        const due = new Date(i.dueDate);
-        if (Number.isNaN(due.getTime())) return false;
-
-        return due < now && i.status !== "done";
-      });
-    }
-  }
-
-  if (dueBefore) {
-    const dueBeforeDate = new Date(parseDueBefore(dueBefore));
-
-    issues = issues.filter((i) => {
-      if (!i.dueDate) return false;
-
-      const due = new Date(i.dueDate);
-      if (Number.isNaN(due.getTime())) return false;
-
-      return due <= dueBeforeDate;
-    });
-  }
-
-  if (assignedTo) {
-    const normalizedAssignedTo = assignedTo.trim().toLowerCase();
-
-    if (normalizedAssignedTo === "unassigned") {
-      issues = issues.filter(
-        (i) => !i.assignedTo || i.assignedTo.trim() === ""
-      );
-    } else {
-      issues = issues.filter(
-        (i) =>
-          typeof i.assignedTo === "string" &&
-          i.assignedTo.trim().toLowerCase() === normalizedAssignedTo
-      );
-    }
   }
 
   assertOneOf(sort, "sort", ["createdAt", "updatedAt"]);
+
   assertOneOf(order, "order", ["asc", "desc"]);
 
-  issues.sort((a, b) => {
-    const av = a[sort];
-    const bv = b[sort];
-
-    if (av === bv) return 0;
-
-    const cmp = av < bv ? -1 : 1;
-    return order === "asc" ? cmp : -cmp;
-  });
-
-  const total = issues.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = (page - 1) * limit;
-  const data = issues.slice(start, start + limit);
-
-  return sendJson(res, 200, {
-    success: true,
-    meta: { page, limit, total, totalPages },
-    data,
-  });
+  // ✅ DB-driven querying
+  const result = await issuesService.listIssues({
+  status,
+  q,
+  priority,
+  assignedTo,
+  sort,
+  order,
+  page,
+  limit,
+});
+  return sendJson(res, 200, result);
 }
+
+
 
 async function listIssuesForProject(req, res, projectId) {
   await requireAuth(req);

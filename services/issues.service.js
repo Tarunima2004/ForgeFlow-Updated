@@ -30,7 +30,11 @@ function validatePriority(priority) {
 
 function validateDueDate(dueDate) {
   const validated = assertValidDate(dueDate, "dueDate");
-  if (validated === undefined || validated === null) return null;
+
+  if (validated === undefined || validated === null) {
+    return null;
+  }
+
   return new Date(validated).toISOString();
 }
 
@@ -39,20 +43,21 @@ function validateAssignedTo(assignedTo) {
   return assertMinLength(a, "assignedTo", 2);
 }
 
-// ✅ Ensure project exists (DB version)
+// ✅ Ensure project exists
 async function ensureProjectExists(projectId) {
-  console.log("PROJECT ID CHECK:", projectId); // ✅ ADDED
+  console.log("PROJECT ID CHECK:", projectId);
 
   const result = await pool.query(
     "SELECT id FROM projects WHERE id = $1",
     [projectId]
   );
 
-  console.log("DB RESULT:", result.rows); // ✅ ADDED
+  console.log("DB RESULT:", result.rows);
 
   assertFound(result.rows[0], "Project not found");
 }
-// ✅ Get next rank (DB version)
+
+// ✅ Get next rank
 async function getNextRankForProject(projectId) {
   const result = await pool.query(
     "SELECT MAX(rank) as max_rank FROM issues WHERE project_id = $1",
@@ -60,63 +65,197 @@ async function getNextRankForProject(projectId) {
   );
 
   const max = result.rows[0].max_rank;
+
   return max ? max + 1 : 1;
 }
-// ✅ Create issue
+
+// ✅ Create issue with transaction
 async function createIssue(
   { title, projectId = null, labels = [], priority, dueDate, assignedTo },
   currentUser
 ) {
-  console.log("BODY RECEIVED:", { title, projectId }); // ✅ ADDED
+  console.log("BODY RECEIVED:", { title, projectId });
 
-  if (projectId) {
-    projectId = projectId.trim(); // ✅ ADDED (fix hidden space bug)
-    await ensureProjectExists(projectId);
+  const client = await pool.connect();
+
+  try {
+    // ✅ START TRANSACTION
+    await client.query("BEGIN");
+
+    if (projectId) {
+      projectId = projectId.trim();
+      await ensureProjectExists(projectId);
+    }
+
+    const now = new Date().toISOString();
+    const userId = currentUser.id;
+
+    const rank = projectId
+      ? await getNextRankForProject(projectId)
+      : null;
+
+    // ✅ INSERT ISSUE
+    const result = await client.query(
+      `INSERT INTO issues
+       (id, title, project_id, status, priority, due_date, rank, assigned_to, created_by, updated_by, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+       RETURNING *`,
+      [
+        crypto.randomUUID(),
+        validateTitle(title),
+        projectId,
+        "todo",
+        validatePriority(priority),
+        validateDueDate(dueDate),
+        rank,
+        assignedTo !== undefined
+          ? validateAssignedTo(assignedTo)
+          : null,
+        userId,
+        userId,
+        now,
+        now,
+      ]
+    );
+
+    const issue = result.rows[0];
+
+    // ✅ LOG ACTIVITY
+    await logActivity({
+      entityType: "issue",
+      entityId: issue.id,
+      action: "issue_created",
+      message: `Issue "${issue.title}" created`,
+    });
+
+    // ✅ SAVE CHANGES
+    await client.query("COMMIT");
+
+    return issue;
+
+  } catch (err) {
+
+    // ❌ UNDO CHANGES IF ERROR HAPPENS
+    await client.query("ROLLBACK");
+
+    throw err;
+
+  } finally {
+
+    // ✅ RELEASE CONNECTION
+    client.release();
   }
-  const now = new Date().toISOString();
-  const userId = currentUser.id;
-
-  const rank = projectId ? await getNextRankForProject(projectId) : null;
-
-  const result = await pool.query(
-    `INSERT INTO issues
-     (id, title, project_id, status, priority, due_date, rank, assigned_to, created_by, updated_by, created_at, updated_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-     RETURNING *`,
-    [
-      crypto.randomUUID(),
-      validateTitle(title),
-      projectId,
-      "todo",
-      validatePriority(priority),
-      validateDueDate(dueDate),
-      rank,
-      assignedTo !== undefined ? validateAssignedTo(assignedTo) : null,
-      userId,
-      userId,
-      now,
-      now,
-    ]
-  );
-
-  const issue = result.rows[0];
-
-  await logActivity({
-    entityType: "issue",
-    entityId: issue.id,
-    action: "issue_created",
-    message: `Issue "${issue.title}" created`,
-  });
-
-  return issue;
 }
 
 // ✅ List all issues
-async function listIssues() {
-  const result = await pool.query("SELECT * FROM issues");
-  return result.rows;
-}
+async function listIssues({
+  status,
+  q,
+  priority,
+  assignedTo,
+  sort = "createdAt",
+  order = "desc",
+  page = 1,
+  limit = 10,
+}) {
+  const values = [];
+  const conditions = [];
 
+  // Status filter
+  if (status) {
+    values.push(status);
+    conditions.push(`status = $${values.length}`);
+  }
+if (q) {
+  values.push(`%${q.trim()}%`);
+  conditions.push(`title ILIKE $${values.length}`);
+}
+  // Priority filter
+  if (priority) {
+    values.push(priority);
+    conditions.push(`priority = $${values.length}`);
+  }
+
+  // Assigned user filter
+  if (assignedTo) {
+    values.push(assignedTo);
+    conditions.push(`assigned_to = $${values.length}`);
+  }
+
+  let query = `
+    SELECT *
+    FROM issues
+  `;
+
+  // WHERE clause
+  if (conditions.length > 0) {
+    query += ` WHERE ${conditions.join(" AND ")}`;
+  }
+
+  // Safe sort mapping
+  const sortMap = {
+    createdAt: "created_at",
+    updatedAt: "updated_at",
+  };
+
+  const sortColumn =
+    sortMap[sort] || "created_at";
+
+  query += `
+    ORDER BY ${sortColumn}
+    ${order.toUpperCase()}
+  `;
+
+  const offset = (page - 1) * limit;
+
+  values.push(limit);
+  values.push(offset);
+
+  query += `
+    LIMIT $${values.length - 1}
+    OFFSET $${values.length}
+  `;
+
+  const result = await pool.query(
+    query,
+    values
+  );
+
+  // Count query for pagination metadata
+  let countQuery = `
+    SELECT COUNT(*) AS total
+    FROM issues
+  `;
+
+  if (conditions.length > 0) {
+    countQuery += `
+      WHERE ${conditions.join(" AND ")}
+    `;
+  }
+
+  const countResult = await pool.query(
+    countQuery,
+    values.slice(0, conditions.length)
+  );
+
+  const total = Number(
+    countResult.rows[0].total
+  );
+
+  return {
+    success: true,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(
+        1,
+        Math.ceil(total / limit)
+      ),
+    },
+    data: result.rows,
+  };
+}
 // ✅ Get issue by id
 async function getIssueById(id) {
   const result = await pool.query(
@@ -125,6 +264,7 @@ async function getIssueById(id) {
   );
 
   const issue = result.rows[0];
+
   assertFound(issue, "Issue not found");
 
   return issue;
@@ -139,6 +279,7 @@ async function updateIssue(
   const existing = await getIssueById(id);
 
   const oldStatus = existing.status;
+
   const nextStatus =
     status !== undefined
       ? (assertAllowedStatus(status), status)
@@ -156,19 +297,26 @@ async function updateIssue(
      WHERE id = $8
      RETURNING *`,
     [
-      title !== undefined ? validateTitle(title) : existing.title,
+      title !== undefined
+        ? validateTitle(title)
+        : existing.title,
+
       nextStatus,
+
       priority !== undefined
         ? validatePriority(priority)
         : existing.priority || "medium",
+
       dueDate !== undefined
         ? validateDueDate(dueDate)
         : existing.due_date || null,
+
       assignedTo !== undefined
         ? assignedTo === null
           ? null
           : validateAssignedTo(assignedTo)
         : existing.assigned_to,
+
       currentUser.id,
       new Date().toISOString(),
       id,
@@ -182,7 +330,10 @@ async function updateIssue(
   await logActivity({
     entityType: "issue",
     entityId: updatedIssue.id,
-    action: statusChanged ? "issue_status_changed" : "issue_updated",
+    action: statusChanged
+      ? "issue_status_changed"
+      : "issue_updated",
+
     message: statusChanged
       ? `Issue status changed from ${oldStatus} to ${updatedIssue.status}`
       : `Issue "${updatedIssue.title}" updated`,
@@ -209,6 +360,7 @@ async function assignIssueById(id, { assignedTo }, currentUser) {
   );
 
   const issue = updated.rows[0];
+
   assertFound(issue, "Issue not found");
 
   await logActivity({
@@ -229,6 +381,7 @@ async function deleteIssue(id) {
   );
 
   const issue = result.rows[0];
+
   assertFound(issue, "Issue not found");
 
   await logActivity({
@@ -241,7 +394,7 @@ async function deleteIssue(id) {
   return issue;
 }
 
-// ✅ List issues by project (sorted by rank)
+// ✅ List issues by project
 async function listIssuesByProjectId(projectId) {
   await ensureProjectExists(projectId);
 
