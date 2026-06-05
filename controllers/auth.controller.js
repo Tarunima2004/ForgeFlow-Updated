@@ -8,47 +8,123 @@ const {
 const authService = require("../services/auth.service");
 
 async function register(req, res) {
-  const body = await readJsonBody(req);
 
-  const name = assertRequiredString(body.name, "name");
-  const email = assertRequiredString(body.email, "email");
-  const password = assertRequiredString(body.password, "password");
+  try {
 
-  const role =
-    body.role === undefined
-      ? "member"
-      : assertOneOf(body.role, "role", ["admin", "member"]);
+    const body =
+      await readJsonBody(req);
 
-  const data = await authService.register({
-    name,
-    email,
-    password,
-    role,
-  });
+    const name =
+      assertRequiredString(
+        body.name,
+        "name"
+      );
 
-  return sendJson(res, 201, {
-    success: true,
-    data,
-  });
+    const email =
+      assertRequiredString(
+        body.email,
+        "email"
+      );
+
+    const password =
+      assertRequiredString(
+        body.password,
+        "password"
+      );
+
+    const role =
+      body.role === undefined
+        ? "member"
+        : assertOneOf(
+            body.role,
+            "role",
+            ["admin", "member"]
+          );
+
+    const data =
+      await authService.register({
+        name,
+        email,
+        password,
+        role,
+      });
+
+    return sendJson(
+      res,
+      201,
+      {
+        success: true,
+        data,
+      }
+    );
+
+  } catch (error) {
+
+    return sendJson(
+      res,
+      error.statusCode || 500,
+      {
+        success: false,
+        message:
+          error.message ||
+          "Internal Server Error",
+        code:
+          error.code ||
+          "INTERNAL_SERVER_ERROR",
+      }
+    );
+  }
 }
-
 async function login(req, res) {
-  const body = await readJsonBody(req);
 
-  const email = assertRequiredString(body.email, "email");
-  const password = assertRequiredString(body.password, "password");
+  try {
 
-  const data = await authService.login({
-    email,
-    password,
-  });
+    const body = await readJsonBody(req);
 
-  return sendJson(res, 200, {
-    success: true,
-    data,
-  });
+    const email =
+      assertRequiredString(
+        body.email,
+        "email"
+      );
+
+    const password =
+      assertRequiredString(
+        body.password,
+        "password"
+      );
+
+    const data =
+      await authService.login({
+        email,
+        password,
+      });
+
+    return sendJson(
+      res,
+      200,
+      {
+        success: true,
+        data,
+      }
+    );
+
+  } catch (error) {
+
+    return sendJson(
+      res,
+      error.statusCode || 500,
+      {
+        success: false,
+        message:
+          error.message ||
+          "Internal Server Error",
+        code:
+          error.code ||
+          "INTERNAL_SERVER_ERROR",
+      }
+    );
+  }
 }
-
 module.exports = {
   register,
   login,
