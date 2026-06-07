@@ -4,6 +4,9 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext"; // adjust path to your AuthContext
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
+import { getDashboardStats } from "../services/dashboard.service";
+import { getProjects } from "../services/projects.service";
+import { createProject } from "../services/projects.service";
 const STATS_DATA = [
   {
     id: "total-projects",
@@ -218,13 +221,31 @@ const AI_SUGGESTIONS = [
 ];
 
 const QUICK_ACTIONS = [
-  { icon: "add_box",        label: "Create Proj" },
-  { icon: "bug_report",     label: "New Issue"   },
-  { icon: "person_add",     label: "Invite User" },
-  { icon: "assignment_ind", label: "Assign Task" },
-];
+  {
+    icon: "add_box",
+    label: "Create Proj",
+    action: "createProject",
+  },
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+  {
+    icon: "bug_report",
+    label: "New Issue",
+    action: "createIssue",
+  },
+
+  {
+    icon: "person_add",
+    label: "Invite User",
+    action: "inviteUser",
+  },
+
+  {
+    icon: "assignment_ind",
+    label: "Assign Task",
+    action: "assignTask",
+  },
+];
+// ─── Sub-components ─────────────────────────────────────────────────────
 
 function Icon({ name, className = "" }) {
   return (
@@ -270,7 +291,7 @@ function ProjectCard({ title, status, statusBg, statusText, description, avatars
       </p>
       <div className="flex items-center gap-4 mb-4">
         <div className="flex">
-          {avatars.map((src, i) => (
+          {(avatars || []).map((src, i) => (
             <img
               key={i}
               src={src}
@@ -316,17 +337,167 @@ export default function AdminDashboard() {
   const [activities, setActivities] = useState(ACTIVITIES_DATA);
   const [teamMembers, setTeamMembers] = useState(TEAM_MEMBERS);
   const [aiPrompt, setAiPrompt]   = useState("");
+  const [showCreateProjectModal, setShowCreateProjectModal] =useState(false);
+  const [projectName, setProjectName] =useState("");
+  const fetchProjects = async () => {
+  try {
+    const response = await getProjects();
 
-  useEffect(() => {
-    // Future API calls go here, e.g.:
-    // fetchStats().then(setStats);
-    // fetchProjects().then(setProjects);
-    // fetchActivities().then(setActivities);
-    // fetchTeamMembers().then(setTeamMembers);
-  }, []);
+    const projectsData = response.data;
 
-  
+    setProjects(
+      projectsData.map((project) => ({
+        id: project.id,
+        title: project.name,
 
+        status: "Active",
+        statusBg: "bg-[#3e52d5]",
+        statusText: "text-[#d7daff]",
+
+        description: "Project managed in ForgeFlow",
+
+        avatars: [],
+
+        progress: 0,
+        progressColor: "bg-[#2036bd]",
+
+        issueCount: 0,
+
+        updatedAt: "Recently",
+      }))
+    );
+  } catch (error) {
+    console.error("Projects Error:", error);
+  }
+};
+
+useEffect(() => {
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await getDashboardStats();
+
+      const data = response.data;
+
+      setStats([
+        {
+          id: "total-projects",
+          icon: "folder",
+          iconColor: "text-[#2036bd]",
+          iconBg: "bg-[#dfe0ff]",
+          label: "Total Projects",
+          value: data.totalProjects,
+          trend: "",
+          trendIcon: null,
+          trendColor: "",
+        },
+
+        {
+          id: "total-issues",
+          icon: "bug_report",
+          iconColor: "text-[#505f76]",
+          iconBg: "bg-[#d0e1fb]",
+          label: "Total Issues",
+          value: data.totalIssues,
+          trend: "",
+          trendIcon: null,
+          trendColor: "",
+        },
+
+        {
+          id: "open-issues",
+          icon: "emergency",
+          iconColor: "text-[#ba1a1a]",
+          iconBg: "bg-[#ffdad6]",
+          label: "Open Issues",
+          value: data.openIssues,
+          trend: "",
+          trendIcon: null,
+          trendColor: "",
+        },
+
+        {
+          id: "closed-issues",
+          icon: "check_circle",
+          iconColor: "text-[#7e3100]",
+          iconBg: "bg-[#ffdbcc]",
+          label: "Closed Issues",
+          value: data.closedIssues,
+          trend: "",
+          trendIcon: null,
+          trendColor: "",
+        },
+
+        {
+          id: "high-priority",
+          icon: "priority_high",
+          iconColor: "text-[#7a2f00]",
+          iconBg: "bg-[#ffb694]",
+          label: "High Priority",
+          value: data.highPriorityIssues,
+          trend: "",
+          trendIcon: null,
+          trendColor: "",
+        },
+
+        {
+          id: "active-users",
+          icon: "person",
+          iconColor: "text-[#1d34ba]",
+          iconBg: "bg-[#dfe0ff]",
+          label: "Active Users",
+          value: data.activeUsers,
+          trend: "",
+          trendIcon: null,
+          trendColor: "",
+        },
+      ]);
+    } catch (error) {
+      console.error("Dashboard Stats Error:", error);
+    }
+  };
+
+  fetchDashboardStats();
+  fetchProjects();
+}, []);
+
+const handleCreateProject = async () => {
+  try {
+    await createProject({
+      name: projectName,
+    });
+
+    await fetchProjects();
+
+    setProjectName("");
+
+    setShowCreateProjectModal(false);
+  } catch (error) {
+    console.error("Create Project Error:", error);
+  }
+};
+
+const handleQuickAction = (action) => {
+  switch (action) {
+    case "createProject":
+      setShowCreateProjectModal(true);
+      break;
+
+    case "createIssue":
+      console.log("Create Issue");
+      break;
+
+    case "inviteUser":
+      console.log("Invite User");
+      break;
+
+    case "assignTask":
+      console.log("Assign Task");
+      break;
+
+    default:
+      break;
+  }
+};
   return (
     <div className="bg-[#f7f9fb] text-[#191c1e] font-['Inter',sans-serif] min-h-screen">
 
@@ -494,9 +665,10 @@ export default function AdminDashboard() {
             <section className="bg-white border border-[#c5c5d7] rounded-xl p-4">
               <h3 className="text-[18px] leading-[26px] font-semibold mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-2">
-                {QUICK_ACTIONS.map(({ icon, label }) => (
+                {QUICK_ACTIONS.map(({ icon, label, action }) => (
                   <button
                     key={label}
+                    onClick={() => handleQuickAction(action)}
                     className="flex flex-col items-center justify-center p-3 rounded-lg border border-[#c5c5d7] hover:bg-[#3e52d5] hover:border-[#3e52d5] hover:[&>span]:text-[#d7daff] transition-all group cursor-pointer bg-transparent"
                   >
                     <Icon
@@ -592,6 +764,49 @@ export default function AdminDashboard() {
           </div>
         </div>
       </main>
+      {
+  showCreateProjectModal && (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-xl w-[400px]">
+
+        <h2 className="text-xl font-semibold mb-4">
+          Create Project
+        </h2>
+
+        <input
+          type="text"
+          placeholder="Project Name"
+          value={projectName}
+          onChange={(e) =>
+            setProjectName(e.target.value)
+          }
+          className="w-full border p-3 rounded-lg mb-4"
+        />
+
+        <div className="flex justify-end gap-2">
+
+          <button
+            onClick={() =>
+              setShowCreateProjectModal(false)
+            }
+            className="px-4 py-2 border rounded-lg"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleCreateProject}
+            className="px-4 py-2 bg-[#2036bd] text-white rounded-lg"
+          >
+            Create
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+  )
+}
     </div>
   );
 }
