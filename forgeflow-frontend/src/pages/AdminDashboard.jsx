@@ -7,6 +7,9 @@ import Navbar from "../components/dashboard/Navbar";
 import { getDashboardStats } from "../services/dashboard.service";
 import { getProjects } from "../services/projects.service";
 import { createProject } from "../services/projects.service";
+import { createIssue } from "../services/issues.service";
+import { getUsers } from "../services/users.service";
+import {getRecentActivity,} from "../services/activity.service";
 const STATS_DATA = [
   {
     id: "total-projects",
@@ -151,75 +154,6 @@ const TEAM_MEMBERS = [
   },
 ];
 
-const ACTIVITIES_DATA = [
-  {
-    id: "act-1",
-    iconBg: "bg-[#3e52d5]",
-    iconColor: "text-[#d7daff]",
-    icon: "add_circle",
-    content: (
-      <>
-        <span className="font-bold">Sarah Jenkins</span> created{" "}
-        <a href="#" className="text-[#2036bd] hover:underline">
-          FF-402: API Optimization
-        </a>
-      </>
-    ),
-    time: "2 mins ago",
-  },
-  {
-    id: "act-2",
-    iconBg: "bg-[#d0e1fb]",
-    iconColor: "text-[#54647a]",
-    icon: "assignment_ind",
-    content: (
-      <>
-        <span className="font-bold">Admin</span> assigned{" "}
-        <a href="#" className="text-[#2036bd] hover:underline">
-          FF-384
-        </a>{" "}
-        to <span className="font-bold">Marcus Thorne</span>
-      </>
-    ),
-    time: "15 mins ago",
-  },
-  {
-    id: "act-3",
-    iconBg: "bg-[#ffdad6]",
-    iconColor: "text-[#ba1a1a]",
-    icon: "emergency_home",
-    content: (
-      <>
-        <span className="font-bold">Critical Issue:</span>{" "}
-        <a href="#" className="text-[#ba1a1a] font-bold hover:underline">
-          Database Timeout in Production
-        </a>
-      </>
-    ),
-    time: "1h ago",
-  },
-  {
-    id: "act-4",
-    iconBg: "bg-[#ffdbcc]",
-    iconColor: "text-[#7a2f00]",
-    icon: "comment",
-    content: (
-      <>
-        <span className="font-bold">Marcus</span> commented on{" "}
-        <a href="#" className="text-[#2036bd] hover:underline">
-          App Redesign Proposal
-        </a>
-      </>
-    ),
-    time: "3h ago",
-  },
-];
-
-const AI_SUGGESTIONS = [
-  "Set up CI/CD pipeline for staging",
-  "Define API endpoints for auth",
-];
-
 const QUICK_ACTIONS = [
   {
     icon: "add_box",
@@ -334,11 +268,18 @@ export default function AdminDashboard() {
   // ── API-ready state (populate via useEffect once backend exists) ──────────
   const [stats, setStats]         = useState(STATS_DATA);
   const [projects, setProjects]   = useState(PROJECTS_DATA);
-  const [activities, setActivities] = useState(ACTIVITIES_DATA);
   const [teamMembers, setTeamMembers] = useState(TEAM_MEMBERS);
   const [aiPrompt, setAiPrompt]   = useState("");
   const [showCreateProjectModal, setShowCreateProjectModal] =useState(false);
   const [projectName, setProjectName] =useState("");
+  const [showCreateIssueModal,setShowCreateIssueModal,] = useState(false);
+  const [issueTitle,setIssueTitle,] = useState("");
+  const [selectedProject,setSelectedProject,] = useState("");
+  const [issuePriority,setIssuePriority,] = useState("medium");
+  const [users, setUsers] =useState([]);
+  const [assignedUser, setAssignedUser] =useState("");
+  const [dueDate, setDueDate] =useState("");
+  const [activities,setActivities] = useState([]);
   const fetchProjects = async () => {
   try {
     const response = await getProjects();
@@ -370,9 +311,21 @@ export default function AdminDashboard() {
     console.error("Projects Error:", error);
   }
 };
+const fetchUsers = async () => {
+  try {
+    const response =
+      await getUsers();
 
-useEffect(() => {
-  const fetchDashboardStats = async () => {
+    setUsers(response.data);
+
+  } catch (error) {
+    console.error(
+      "Users Error:",
+      error
+    );
+  }
+};
+const fetchDashboardStats = async () => {
     try {
       const response = await getDashboardStats();
 
@@ -455,9 +408,109 @@ useEffect(() => {
       console.error("Dashboard Stats Error:", error);
     }
   };
+  const fetchActivities = async () => {
+  try {
 
+    const response =
+      await getRecentActivity();
+
+    const activityData =
+      response.data;
+
+    const formatted =
+      activityData.map(
+        (activity) => {
+
+          let icon =
+            "info";
+
+          let iconBg =
+            "bg-[#d0e1fb]";
+
+          let iconColor =
+            "text-[#54647a]";
+
+          switch (
+            activity.action
+          ) {
+
+            case "project_created":
+              icon =
+                "folder";
+              iconBg =
+                "bg-[#dfe0ff]";
+              iconColor =
+                "text-[#2036bd]";
+              break;
+
+            case "issue_created":
+              icon =
+                "bug_report";
+              iconBg =
+                "bg-[#ffdad6]";
+              iconColor =
+                "text-[#ba1a1a]";
+              break;
+
+            case "issue_updated":
+              icon =
+                "edit";
+              iconBg =
+                "bg-[#ffdbcc]";
+              iconColor =
+                "text-[#7a2f00]";
+              break;
+
+            case "issue_assigned":
+              icon =
+                "assignment_ind";
+              iconBg =
+                "bg-[#d0e1fb]";
+              iconColor =
+                "text-[#54647a]";
+              break;
+
+            default:
+              break;
+          }
+
+          return {
+            id: activity.id,
+
+            icon,
+            iconBg,
+            iconColor,
+
+            content:
+              activity.message,
+
+            time:
+              new Date(
+                activity.createdAt
+              ).toLocaleString(),
+          };
+        }
+      );
+
+    setActivities(
+      formatted
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Activity Error:",
+      error
+    );
+
+  }
+};
+
+useEffect(() => { 
   fetchDashboardStats();
   fetchProjects();
+  fetchUsers();
+  fetchActivities();
 }, []);
 
 const handleCreateProject = async () => {
@@ -475,6 +528,31 @@ const handleCreateProject = async () => {
     console.error("Create Project Error:", error);
   }
 };
+const handleCreateIssue =
+  async () => {
+    try {
+
+      await createIssue({
+        title: issueTitle,
+        projectId: selectedProject,
+        priority: issuePriority,
+        assignedTo:assignedUser || undefined,
+        dueDate:dueDate || undefined,
+      });
+
+      setIssueTitle("");
+      setSelectedProject("");
+      setIssuePriority("medium");
+
+      setShowCreateIssueModal(false);
+
+    } catch (error) {
+      console.error(
+        "Create Issue Error:",
+        error
+      );
+    }
+  };
 
 const handleQuickAction = (action) => {
   switch (action) {
@@ -483,7 +561,7 @@ const handleQuickAction = (action) => {
       break;
 
     case "createIssue":
-      console.log("Create Issue");
+      setShowCreateIssueModal(true);
       break;
 
     case "inviteUser":
@@ -718,7 +796,7 @@ const handleQuickAction = (action) => {
                   <p className="text-[11px] leading-[14px] tracking-[0.03em] font-semibold opacity-70 uppercase">
                     Suggestions:
                   </p>
-                  {AI_SUGGESTIONS.map((text) => (
+                  {[].map((text) => (
                     <div
                       key={text}
                       className="p-2 bg-white/10 rounded border border-white/20 flex gap-2 items-start"
@@ -807,6 +885,145 @@ const handleQuickAction = (action) => {
     </div>
   )
 }
+{showCreateIssueModal && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+    <div className="bg-white p-6 rounded-xl w-[450px]">
+
+      <h2 className="text-xl font-semibold mb-4">
+        Create Issue
+      </h2>
+
+      <input
+        type="text"
+        placeholder="Issue Title"
+        value={issueTitle}
+        onChange={(e) =>
+          setIssueTitle(
+            e.target.value
+          )
+        }
+        className="w-full border p-2 rounded mb-4"
+      />
+
+      <select
+        value={selectedProject}
+        onChange={(e) =>
+          setSelectedProject(
+            e.target.value
+          )
+        }
+        className="w-full border p-2 rounded mb-4"
+      >
+
+        <option value="">
+          Select Project
+        </option>
+
+        {projects.map((project) => (
+          <option
+            key={project.id}
+            value={project.id}
+          >
+            {project.title}
+          </option>
+        ))}
+
+      </select>
+      {/* Priority */}
+
+<select
+  value={issuePriority}
+  onChange={(e) =>
+    setIssuePriority(
+      e.target.value
+    )
+  }
+  className="w-full border p-2 rounded mb-4"
+>
+  <option value="low">
+    Low Priority
+  </option>
+
+  <option value="medium">
+    Medium Priority
+  </option>
+
+  <option value="high">
+    High Priority
+  </option>
+
+  <option value="critical">
+    Critical Priority
+  </option>
+</select>
+
+{/* Due Date */}
+
+<input
+  type="date"
+  value={dueDate}
+  onChange={(e) =>
+    setDueDate(
+      e.target.value
+    )
+  }
+  className="w-full border p-2 rounded mb-4"
+/>
+
+{/* Assign User */}
+
+<select
+  value={assignedUser}
+  onChange={(e) =>
+    setAssignedUser(
+      e.target.value
+    )
+  }
+  className="w-full border p-2 rounded mb-4"
+>
+  <option value="">
+    Select User
+  </option>
+
+  {users.map((user) => (
+    <option
+      key={user.id}
+      value={user.id}
+    >
+      {user.name}
+    </option>
+  ))}
+</select>
+
+      <div className="flex justify-end gap-2">
+
+        <button
+          onClick={() =>
+            setShowCreateIssueModal(
+              false
+            )
+          }
+          className="px-4 py-2 border rounded"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={
+            handleCreateIssue
+          }
+          className="px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          Create
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
     </div>
   );
 }

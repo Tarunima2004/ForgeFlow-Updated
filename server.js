@@ -14,6 +14,7 @@ const { handleRestoreRoutes } = require("./routes/restore.routes");
 const { handleDocsRoutes } = require("./routes/docsRoutes");
 const { seedData } = require("./utils/seedData");
 const { handleDashboardRoutes} = require("./routes/dashboard.routes");
+const { handleActivityRoutes,} = require("./routes/activity.routes");
 
 const PORT = process.env.PORT || 3000;
 
@@ -113,6 +114,7 @@ if (await handleDocsRoutes(req, res, path)) return;
     if (await handleUsersRoutes(req, res, path)) return;
     if (await handleProjectsRoutes(req, res, path)) return;
     if (await handleIssuesRoutes(req, res, path, url)) return;
+    if (await handleActivityRoutes(req, res, path)) return;
     if (await handleDashboardRoutes(req,res,path))return;
 
     return sendJson(res, 404, {
