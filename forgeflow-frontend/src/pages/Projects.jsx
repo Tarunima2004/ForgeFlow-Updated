@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
+import {getProjects,getProjectStats, getProjectInsights} from "../services/projects.service";
 
 // ─── API INTEGRATION LAYER ────────────────────────────────────────────────────
 // Replace these with your actual API calls
@@ -10,10 +11,6 @@ const API = {
   fetchProjects: async () => {
     // TODO: return await fetch("/api/projects").then(r => r.json());
     return MOCK_PROJECTS;
-  },
-  fetchStats: async () => {
-    // TODO: return await fetch("/api/projects/stats").then(r => r.json());
-    return MOCK_STATS;
   },
   fetchTimeline: async () => {
     // TODO: return await fetch("/api/projects/timeline").then(r => r.json());
@@ -155,23 +152,6 @@ const MOCK_DEADLINES = [
   { id: "d3", name: "Design QA Review", due: "Due Monday, Dec 19", tag: "Low", tagClass: "bg-[#3e52d5] text-[#d7daff]", rowClass: "border-[#c5c5d7]" },
 ];
 
-const MOCK_INSIGHTS = {
-  totalIssues: 142,
-  openItems: 28,
-  completion: "84%",
-  teamSize: 36,
-  health: [
-    { label: "Healthy", count: "18 Projects", pct: 75, dotClass: "bg-emerald-500", barClass: "bg-emerald-500" },
-    { label: "At Risk", count: "4 Projects", pct: 17, dotClass: "bg-amber-500", barClass: "bg-amber-500" },
-    { label: "Delayed", count: "2 Projects", pct: 8, dotClass: "bg-[#ba1a1a]", barClass: "bg-[#ba1a1a]" },
-  ],
-  aiInsight: {
-    project: "Mobile App Redesign",
-    message: "Based on velocity over the last 14 days, the {project} project is likely to miss its primary milestone by 4 days. Suggest allocating additional engineering resources from completed projects.",
-  },
-};
-
-
 function Icon({ name, className = "" }) {
   return (
     <span
@@ -312,39 +292,91 @@ export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [featuredProjects, setFeaturedProjects] = useState([]);
   const [stats, setStats] = useState([]);
+  const [projectStats, setProjectStats] =
+  useState({
+    totalProjects: 0,
+    activeProjects: 0,
+    completedProjects: 0,
+    archivedProjects: 0,
+  });
+  const [insights, setInsights] =
+  useState({
+    totalIssues: 0,
+    openItems: 0,
+    completion: 0,
+    teamSize: 0,
+  });
   const [timeline, setTimeline] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
-  const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterQuery, setFilterQuery] = useState("");
+  const fetchProjectStats =
+  async () => {
+
+    try {
+
+      const response =
+        await getProjectStats();
+
+      setProjectStats(
+        response.data
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Project Stats Error:",
+        error
+      );
+
+    }
+};
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const loadAll = async () => {
-      try {
-        setLoading(true);
-        const [p, s, t, d, ins] = await Promise.all([
+  const loadAll = async () => {
+    try {
+      setLoading(true);
+
+      const [p, t, d, insightsResponse] =
+        await Promise.all([
           API.fetchProjects(),
-          API.fetchStats(),
           API.fetchTimeline(),
           API.fetchDeadlines(),
-          API.fetchInsights(),
+          getProjectInsights(),
         ]);
-        setProjects(p);
-        setFeaturedProjects(MOCK_FEATURED_PROJECTS); // swap with API when ready
-        setStats(s);
-        setTimeline(t);
-        setDeadlines(d);
-        setInsights(ins);
-      } catch (err) {
-        console.error("Failed to load projects data:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadAll();
-  }, []);
 
+      setProjects(p);
+
+      setFeaturedProjects(
+        MOCK_FEATURED_PROJECTS
+      );
+
+      await fetchProjectStats();
+
+      setTimeline(t);
+
+      console.log("Deadlines:", d);
+      console.log(Array.isArray(d));
+
+      setDeadlines(d);
+
+      setInsights(
+        insightsResponse.data
+      );
+
+    } catch (err) {
+      console.error(
+        "Failed to load projects data:",
+        err
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadAll();
+}, []);
   // ── Derived Data ───────────────────────────────────────────────────────────
   const filteredProjects = projects.filter(
     (p) =>
@@ -363,6 +395,29 @@ export default function Projects() {
     );
   }
 
+  const projectHealth = [
+  {
+    label: "Healthy",
+    count: "18 Projects",
+    pct: 75,
+    dotClass: "bg-emerald-500",
+    barClass: "bg-emerald-500",
+  },
+  {
+    label: "At Risk",
+    count: "4 Projects",
+    pct: 17,
+    dotClass: "bg-amber-500",
+    barClass: "bg-amber-500",
+  },
+  {
+    label: "Delayed",
+    count: "2 Projects",
+    pct: 8,
+    dotClass: "bg-[#ba1a1a]",
+    barClass: "bg-[#ba1a1a]",
+  },
+];
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e]">
         <Sidebar />
@@ -396,29 +451,45 @@ export default function Projects() {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-            {stats.map((card) => (
-              <div
-                key={card.id}
-                className="bg-white p-4 border border-[#c5c5d7] rounded-lg"
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className={`p-2 ${card.iconBgClass} ${card.iconColorClass} rounded-lg flex`}>
-                    <Icon name={card.icon} />
-                  </div>
-                  <span className={`text-[11px] font-bold ${card.trendClass} flex items-center gap-1`}>
-                    {card.trendIcon && <Icon name={card.trendIcon} className="text-sm" />}
-                    {card.trend}
-                  </span>
-                </div>
-                <p className="text-[12px] font-medium text-[#454654] uppercase tracking-wider">
-                  {card.label}
-                </p>
-                <h3 className="text-2xl font-semibold mt-1">{card.value}</h3>
-              </div>
-            ))}
-          </div>
+         <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
 
+  <div className="bg-white p-4 border border-[#c5c5d7] rounded-lg">
+    <p className="text-[12px] font-medium text-[#454654] uppercase tracking-wider">
+      TOTAL PROJECTS
+    </p>
+    <h3 className="text-2xl font-semibold mt-1">
+      {projectStats.totalProjects}
+    </h3>
+  </div>
+
+  <div className="bg-white p-4 border border-[#c5c5d7] rounded-lg">
+    <p className="text-[12px] font-medium text-[#454654] uppercase tracking-wider">
+      ACTIVE
+    </p>
+    <h3 className="text-2xl font-semibold mt-1">
+      {projectStats.activeProjects}
+    </h3>
+  </div>
+
+  <div className="bg-white p-4 border border-[#c5c5d7] rounded-lg">
+    <p className="text-[12px] font-medium text-[#454654] uppercase tracking-wider">
+      COMPLETED
+    </p>
+    <h3 className="text-2xl font-semibold mt-1">
+      {projectStats.completedProjects}
+    </h3>
+  </div>
+
+  <div className="bg-white p-4 border border-[#c5c5d7] rounded-lg">
+    <p className="text-[12px] font-medium text-[#454654] uppercase tracking-wider">
+      ARCHIVED
+    </p>
+    <h3 className="text-2xl font-semibold mt-1">
+      {projectStats.archivedProjects}
+    </h3>
+  </div>
+
+</div>
           {/* Featured Projects */}
           <h4 className="text-lg font-semibold mb-4">Featured Projects</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -578,7 +649,7 @@ export default function Projects() {
                 {[
                   { val: insights.totalIssues, label: "Total Issues", valClass: "text-[#191c1e]" },
                   { val: insights.openItems, label: "Open Items", valClass: "text-[#2036bd]" },
-                  { val: insights.completion, label: "Completion", valClass: "text-emerald-600" },
+                  { val: `${insights.completion}%`, label: "Completion", valClass: "text-emerald-600" },
                   { val: insights.teamSize, label: "Team Size", valClass: "text-[#191c1e]" },
                 ].map((item) => (
                   <div
@@ -600,7 +671,7 @@ export default function Projects() {
             <div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
               <h5 className="text-sm font-bold mb-4">Project Health</h5>
               <div className="flex flex-col gap-4">
-                {insights.health.map((item) => (
+                {projectHealth.map((item) => (
                   <div key={item.label}>
                     <div className="flex justify-between text-[11px] font-semibold tracking-wider mb-1">
                       <span className="flex items-center gap-1.5">

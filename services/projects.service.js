@@ -44,10 +44,60 @@ async function createProject({ name }, currentUser) {
 
 // ✅ LIST PROJECTS
 async function listProjects() {
-  const result = await pool.query("SELECT * FROM projects");
-  return result.rows;
-}
+  const projectsResult =
+    await pool.query(
+      "SELECT * FROM projects"
+    );
 
+  const projects =
+    projectsResult.rows;
+
+  for (const project of projects) {
+
+    const issuesResult =
+      await pool.query(
+        `
+        SELECT *
+        FROM issues
+        WHERE project_id = $1
+        `,
+        [project.id]
+      );
+
+    const issues =
+      issuesResult.rows;
+
+    const issueCount =
+      issues.length;
+
+    const completedIssues =
+      issues.filter(
+        issue =>
+          issue.status === "done"
+      ).length;
+
+    const progress =
+      issueCount === 0
+        ? 0
+        : Math.round(
+            (
+              completedIssues /
+              issueCount
+            ) * 100
+          );
+
+    project.issueCount =
+      issueCount;
+
+    project.completedIssues =
+      completedIssues;
+
+    project.progress =
+      progress;
+  }
+
+  return projects;
+}
 // ✅ GET PROJECT BY ID
 async function getProjectById(id) {
   const result = await pool.query(
@@ -170,7 +220,110 @@ async function deleteProjectById(id) {
     deletedIssuesCount,
   };
 }
+async function getProjectStats() {
 
+  const totalProjectsResult =
+    await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM projects
+    `);
+
+  const activeProjectsResult =
+    await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM projects
+      WHERE status = 'active'
+    `);
+
+  const completedProjectsResult =
+    await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM projects
+      WHERE status = 'completed'
+    `);
+
+  const archivedProjectsResult =
+    await pool.query(`
+      SELECT COUNT(*) AS count
+      FROM projects
+      WHERE status = 'archived'
+    `);
+
+  return {
+    totalProjects:
+      Number(
+        totalProjectsResult.rows[0].count
+      ),
+
+    activeProjects:
+      Number(
+        activeProjectsResult.rows[0].count
+      ),
+
+    completedProjects:
+      Number(
+        completedProjectsResult.rows[0].count
+      ),
+
+    archivedProjects:
+      Number(
+        archivedProjectsResult.rows[0].count
+      ),
+  };
+}
+async function getProjectInsights() {
+  // Total Issues
+  const totalIssuesResult = await pool.query(`
+    SELECT COUNT(*) AS count
+    FROM issues
+  `);
+
+  // Open Issues (anything not done)
+  const openItemsResult = await pool.query(`
+    SELECT COUNT(*) AS count
+    FROM issues
+    WHERE status != 'done'
+  `);
+
+  // Completed Issues
+  const completedIssuesResult = await pool.query(`
+    SELECT COUNT(*) AS count
+    FROM issues
+    WHERE status = 'done'
+  `);
+
+  // Total Users
+  const teamSizeResult = await pool.query(`
+    SELECT COUNT(*) AS count
+    FROM users
+  `);
+
+  const totalIssues =
+    Number(totalIssuesResult.rows[0].count);
+
+  const openItems =
+    Number(openItemsResult.rows[0].count);
+
+  const completedIssues =
+    Number(completedIssuesResult.rows[0].count);
+
+  const teamSize =
+    Number(teamSizeResult.rows[0].count);
+
+  const completion =
+    totalIssues === 0
+      ? 0
+      : Math.round(
+          (completedIssues / totalIssues) * 100
+        );
+
+  return {
+    totalIssues,
+    openItems,
+    completion,
+    teamSize,
+  };
+}
 module.exports = {
   createProject,
   listProjects,
@@ -178,4 +331,6 @@ module.exports = {
   getProjectSummaryById,
   updateProjectById,
   deleteProjectById,
+  getProjectStats,
+  getProjectInsights,
 };

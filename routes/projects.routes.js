@@ -23,7 +23,19 @@ async function handleProjectsRoutes(req, res, path) {
 
     return false;
   }
+// /projects/stats
+if (
+  path === "/projects/stats" &&
+  req.method === "GET"
+) {
 
+  await projectsController.getProjectStats(
+    req,
+    res
+  );
+
+  return true;
+}
   // /projects/:id/issues
   const issuesMatch = path.match(/^\/projects\/([^/]+)\/issues$/);
   if (issuesMatch) {
@@ -67,7 +79,17 @@ async function handleProjectsRoutes(req, res, path) {
 
     return false;
   }
+  if (
+  path === "/projects/insights" &&
+  req.method === "GET"
+) {
+  await projectsController.getProjectInsights(
+    req,
+    res
+  );
 
+  return true;
+}
   // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {

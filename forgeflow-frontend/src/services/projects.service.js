@@ -14,3 +14,18 @@ export const createProject = async (
 
   return response.data;
 };
+export const getProjectStats = async () => {
+  const response =
+    await api.get("/projects/stats");
+
+  return response.data;
+};
+export const getProjectInsights =
+  async () => {
+    const response =
+      await api.get(
+        "/projects/insights"
+      );
+
+    return response.data;
+  };

@@ -9,7 +9,8 @@ import { getProjects } from "../services/projects.service";
 import { createProject } from "../services/projects.service";
 import { createIssue } from "../services/issues.service";
 import { getUsers } from "../services/users.service";
-import {getRecentActivity,} from "../services/activity.service";
+import {getRecentActivity} from "../services/activity.service";
+import {getIssuesByStatus,getIssuesByPriority,} from "../services/dashboard.service";
 const STATS_DATA = [
   {
     id: "total-projects",
@@ -92,8 +93,6 @@ const PROJECTS_DATA = [
       "https://lh3.googleusercontent.com/aida-public/AB6AXuBbptBLYsFfh2f_2b0sKFCa4DOFTBH9Q6j-1Q1mdyoBtPUQ8ricDX7cz-PN0CO7p6sFlfKdBQ-l-QvI5lYSNxlKnrOtkaoPxPrAxBMMa_RI9TCXivRfTFxMtBVRk7urIQHRJb4oIWbJF3e2R2CAs3Bzp1LznrSp-UrTbZ3K-8iJdehVPt_Gm9VWVdFbTMvlbykH9DD8F3sRM1E-QL4hmRDuKr6dmVBDuWXrjRTm6nLZ5b-VMGWZCyleCJkTzNXy17fuKXmvJZOOg9cD",
       "https://lh3.googleusercontent.com/aida-public/AB6AXuAXSNrHkhpHTzQIASeCZyKYBAWCjApnRUuDUkL0fcbSl6oCoR_1X9iSuetFuKEvLneKOX1Fd23VldftlO05ZReeZwsqkwqYPqd5S7vs7tUFNAcm91Sq3Og4LzLmdUp0f6UxNEn9dg2C1Jl5uMo7M6y9l7hr8uUO3N0OcFxU3XD2aNIV4cPrc-seWGgFy_-Dmh7qw0TrIB8bqACi4ebT0kvxNkNJQWYvH3HTFTEk0z73OAV6sOQzRs9M0N-TPVtZMzZFdsXBOIt4X49Q",
     ],
-    progress: 64,
-    progressColor: "bg-[#2036bd]",
     issueCount: 12,
     updatedAt: "4h ago",
   },
@@ -115,19 +114,6 @@ const PROJECTS_DATA = [
   },
 ];
 
-const PRIORITY_BARS = [
-  { label: "Critical", color: "bg-[#ba1a1a]", textColor: "text-[#ba1a1a]", count: 8,  widthClass: "w-[15%]" },
-  { label: "High",     color: "bg-[#7a2f00]", textColor: "text-[#7a2f00]", count: 24, widthClass: "w-[45%]" },
-  { label: "Medium",   color: "bg-[#54647a]", textColor: "text-[#54647a]", count: 62, widthClass: "w-[75%]" },
-  { label: "Low",      color: "bg-[#757686]", textColor: "text-[#757686]", count: 38, widthClass: "w-[40%]" },
-];
-
-const STATUS_BARS = [
-  { label: "Open",     color: "bg-[#3e52d5]", heightClass: "h-[60%]" },
-  { label: "In Prog",  color: "bg-[#d0e1fb]", heightClass: "h-[40%]" },
-  { label: "Resolved", color: "bg-[#ffb694]", heightClass: "h-[85%]" },
-  { label: "Closed",   color: "bg-[#e0e3e5]", heightClass: "h-[30%]" },
-];
 
 const TEAM_MEMBERS = [
   {
@@ -280,37 +266,52 @@ export default function AdminDashboard() {
   const [assignedUser, setAssignedUser] =useState("");
   const [dueDate, setDueDate] =useState("");
   const [activities,setActivities] = useState([]);
+  const [statusData, setStatusData] =useState([]);
+  const [priorityData, setPriorityData] =useState([]);
   const fetchProjects = async () => {
   try {
-    const response = await getProjects();
+  const response = await getProjects();
 
-    const projectsData = response.data;
+  const projectsData = response.data;
 
-    setProjects(
-      projectsData.map((project) => ({
-        id: project.id,
-        title: project.name,
+  setProjects(
+    projectsData.map((project) => ({
+      id: project.id,
 
-        status: "Active",
-        statusBg: "bg-[#3e52d5]",
-        statusText: "text-[#d7daff]",
+      title: project.name,
 
-        description: "Project managed in ForgeFlow",
+      status: "Active",
 
-        avatars: [],
+      statusBg: "bg-[#3e52d5]",
 
-        progress: 0,
-        progressColor: "bg-[#2036bd]",
+      statusText: "text-[#d7daff]",
 
-        issueCount: 0,
+      description: "Project managed in ForgeFlow",
 
-        updatedAt: "Recently",
-      }))
-    );
-  } catch (error) {
-    console.error("Projects Error:", error);
-  }
-};
+      avatars: [],
+
+      progress: project.progress,
+
+      progressColor:
+  project.progress < 40
+    ? "bg-red-500"
+    : project.progress <= 70
+    ? "bg-blue-600"
+    : "bg-green-500",
+
+      issueCount: project.issueCount,
+
+      completedIssues: project.completedIssues,
+
+      updatedAt: new Date(
+        project.updated_at
+      ).toLocaleDateString(),
+    }))
+  );
+} catch (error) {
+  console.error("Projects Error:", error);
+}
+  };
 const fetchUsers = async () => {
   try {
     const response =
@@ -505,12 +506,56 @@ const fetchDashboardStats = async () => {
 
   }
 };
+const fetchIssuesByStatus =
+  async () => {
+
+    try {
+
+      const response =
+        await getIssuesByStatus();
+
+      setStatusData(
+        response.data
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Status Error:",
+        error
+      );
+
+    }
+};
+const fetchIssuesByPriority =
+  async () => {
+
+    try {
+
+      const response =
+        await getIssuesByPriority();
+
+      setPriorityData(
+        response.data
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Priority Error:",
+        error
+      );
+
+    }
+};
 
 useEffect(() => { 
   fetchDashboardStats();
   fetchProjects();
   fetchUsers();
   fetchActivities();
+  fetchIssuesByStatus();
+  fetchIssuesByPriority();
 }, []);
 
 const handleCreateProject = async () => {
@@ -520,6 +565,7 @@ const handleCreateProject = async () => {
     });
 
     await fetchProjects();
+    await fetchDashboardStats();
 
     setProjectName("");
 
@@ -539,7 +585,11 @@ const handleCreateIssue =
         assignedTo:assignedUser || undefined,
         dueDate:dueDate || undefined,
       });
-
+      await fetchDashboardStats();
+      await fetchProjects();
+      await fetchActivities();
+      await fetchIssuesByStatus();
+      await fetchIssuesByPriority();
       setIssueTitle("");
       setSelectedProject("");
       setIssuePriority("medium");
@@ -576,6 +626,68 @@ const handleQuickAction = (action) => {
       break;
   }
 };
+const statusBars = [
+  {
+    label: "todo",
+    count:
+      statusData.find(
+        s => s.status === "todo"
+      )?.count || 0,
+  },
+  {
+    label: "in_progress",
+    count:
+      statusData.find(
+        s => s.status === "in_progress"
+      )?.count || 0,
+  },
+  {
+    label: "done",
+    count:
+      statusData.find(
+        s => s.status === "done"
+      )?.count || 0,
+  },
+];  
+const priorityBars = [
+  {
+    label: "critical",
+    count:
+      priorityData.find(
+        p => p.priority === "critical"
+      )?.count || 0,
+  },
+  {
+    label: "high",
+    count:
+      priorityData.find(
+        p => p.priority === "high"
+      )?.count || 0,
+  },
+  {
+    label: "medium",
+    count:
+      priorityData.find(
+        p => p.priority === "medium"
+      )?.count || 0,
+  },
+  {
+    label: "low",
+    count:
+      priorityData.find(
+        p => p.priority === "low"
+      )?.count || 0,
+  },
+];
+  const maxStatusCount = Math.max(
+  ...statusData.map(item => item.count),
+  1
+);
+
+const maxPriorityCount = Math.max(
+  ...priorityData.map(item => item.count),
+  1
+);
   return (
     <div className="bg-[#f7f9fb] text-[#191c1e] font-['Inter',sans-serif] min-h-screen">
 
@@ -630,45 +742,113 @@ const handleQuickAction = (action) => {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               {/* Issues by Status */}
-              <div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
-                <h3 className="text-[18px] leading-[26px] font-semibold mb-4">
-                  Issues by Status
-                </h3>
-                <div className="h-48 flex items-end gap-4 px-4">
-                  {STATUS_BARS.map(({ label, color, heightClass }) => (
-                    <div key={label} className="flex-1 flex flex-col items-center gap-2">
-                      <div
-                        className={`w-full ${color} ${heightClass} transition-all duration-1000`}
-                      />
-                      <span className="text-[11px] leading-[14px] tracking-[0.03em] font-semibold">
-                        {label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+<div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
+  <h3 className="text-[18px] leading-[26px] font-semibold mb-4">
+    Issues by Status
+  </h3>
 
-              {/* Issues by Priority */}
-              <div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
-                <h3 className="text-[18px] leading-[26px] font-semibold mb-4">
-                  Issues by Priority
-                </h3>
-                <div className="flex flex-col gap-4">
-                  {PRIORITY_BARS.map(({ label, color, textColor, count, widthClass }) => (
-                    <div key={label} className="flex flex-col gap-1">
-                      <div className="flex justify-between text-[11px] leading-[14px] tracking-tight font-semibold uppercase">
-                        <span className={`${textColor} font-bold`}>{label}</span>
-                        <span>{count}</span>
-                      </div>
-                      <div className="w-full h-2 bg-[#eceef0] rounded-full overflow-hidden">
-                        <div className={`h-full ${color} ${widthClass}`} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
+  <div className="h-56 flex items-end justify-between gap-6 px-4">
 
+  {statusBars.map(({ label, count }) => (
+
+    <div
+      key={label}
+      className="flex flex-col items-center flex-1 h-full"
+    >
+
+      {/* Count */}
+      <span className="text-sm font-semibold text-[#454654] mb-2">
+        {count}
+      </span>
+
+      {/* Bar Container */}
+      <div className="flex items-end h-full w-full">
+
+        <div
+          className={`w-full rounded-t-md transition-all duration-1000 ${
+            label === "done"
+              ? "bg-green-500"
+              : label === "in_progress"
+              ? "bg-blue-500"
+              : "bg-red-500"
+          }`}
+          style={{
+            height: `${
+              count === 0
+                ? 8
+                : (count / maxStatusCount) * 100
+            }%`,
+          }}
+        />
+
+      </div>
+
+      {/* Label */}
+      <span className="mt-3 text-xs font-semibold uppercase text-[#454654]">
+        {label.replace("_", " ")}
+      </span>
+
+    </div>
+
+  ))}
+
+</div>
+
+
+</div>
+             {/* Issues by Priority */}
+<div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
+  <h3 className="text-[18px] leading-[26px] font-semibold mb-4">
+    Issues by Priority
+  </h3>
+
+  <div className="flex flex-col gap-4">
+
+    {priorityBars.map(({ label, count }) => (
+
+      <div
+        key={label}
+        className="flex flex-col gap-1"
+      >
+
+        <div className="flex justify-between text-[11px] leading-[14px] tracking-tight font-semibold uppercase">
+
+          <span className="font-bold">
+            {label}
+          </span>
+
+          <span>
+            {count}
+          </span>
+
+        </div>
+
+        <div className="w-full h-2 bg-[#eceef0] rounded-full overflow-hidden">
+
+          <div
+            className={`h-full ${
+              label === "critical"
+                ? "bg-[#ba1a1a]"
+                : label === "high"
+                ? "bg-[#7a2f00]"
+                : label === "medium"
+                ? "bg-[#54647a]"
+                : "bg-[#757686]"
+            }`}
+            style={{
+              width: `${(count / maxPriorityCount) * 100}%`
+            }}
+          />
+
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+</div>
+</section>
             {/* Team Management Table */}
             <section className="bg-white border border-[#c5c5d7] rounded-xl overflow-hidden">
               <div className="p-4 border-b border-[#c5c5d7] flex justify-between items-center">

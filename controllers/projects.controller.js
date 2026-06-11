@@ -94,6 +94,33 @@ async function deleteProject(req, res, id) {
     },
   });
 }
+async function getProjectStats(
+  req,
+  res
+) {
+
+  const stats =
+    await projectsService
+      .getProjectStats();
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: stats,
+    }
+  );
+}
+async function getProjectInsights(req, res) {
+  const insights =
+    await projectsService.getProjectInsights();
+
+  return sendJson(res, 200, {
+    success: true,
+    data: insights,
+  });
+}
 
 module.exports = {
   createProject,
@@ -102,4 +129,6 @@ module.exports = {
   getProjectSummary,
   patchProject,
   deleteProject,
+  getProjectStats,
+  getProjectInsights,
 };
