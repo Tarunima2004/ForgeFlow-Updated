@@ -90,6 +90,20 @@ if (
 
   return true;
 }
+// /projects/health
+if (
+  path === "/projects/health" &&
+  req.method === "GET"
+) {
+
+  await projectsController
+    .getProjectHealth(
+      req,
+      res
+    );
+
+  return true;
+}
   // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {

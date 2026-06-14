@@ -29,3 +29,12 @@ export const getProjectInsights =
 
     return response.data;
   };
+export async function getProjectHealth() {
+const response = await fetch(
+    "http://localhost:3000/projects/health"
+  );
+
+  const result = await response.json();
+
+  return result.data;
+}

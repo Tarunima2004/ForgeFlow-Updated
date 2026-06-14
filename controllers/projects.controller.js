@@ -121,7 +121,23 @@ async function getProjectInsights(req, res) {
     data: insights,
   });
 }
+async function getProjectHealth(
+  req,
+  res
+) {
+  const data =
+    await projectsService
+      .getProjectHealth();
 
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data,
+    }
+  );
+}
 module.exports = {
   createProject,
   listProjects,
@@ -131,4 +147,5 @@ module.exports = {
   deleteProject,
   getProjectStats,
   getProjectInsights,
+   getProjectHealth,
 };

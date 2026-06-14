@@ -75,7 +75,41 @@ async function listProjects() {
         issue =>
           issue.status === "done"
       ).length;
+     const openIssues =
+  issues.filter(
+    issue =>
+      issue.status !== "done"
+  );
 
+let priority = "low";
+
+if (
+  openIssues.some(
+    issue =>
+      issue.priority === "critical"
+  )
+) {
+
+  priority = "critical";
+
+} else if (
+  openIssues.some(
+    issue =>
+      issue.priority === "high"
+  )
+) {
+
+  priority = "high";
+
+} else if (
+  openIssues.some(
+    issue =>
+      issue.priority === "medium"
+  )
+) {
+
+  priority = "medium";
+}
     const progress =
       issueCount === 0
         ? 0
@@ -94,6 +128,8 @@ async function listProjects() {
 
     project.progress =
       progress;
+      project.priority =
+  priority;
   }
 
   return projects;
@@ -324,6 +360,156 @@ async function getProjectInsights() {
     teamSize,
   };
 }
+async function getProjectHealth() {
+
+  const projectsResult =
+    await pool.query(`
+      SELECT *
+      FROM projects
+    `);
+
+  const projects =
+    projectsResult.rows;
+
+  let healthy = 0;
+  let atRisk = 0;
+  let delayed = 0;
+
+  for (const project of projects) {
+
+    const issuesResult =
+      await pool.query(
+        `
+        SELECT *
+        FROM issues
+        WHERE project_id = $1
+        `,
+        [project.id]
+      );
+
+    const issues =
+      issuesResult.rows;
+
+    const issueCount =
+      issues.length;
+
+    const completedIssues =
+      issues.filter(
+        issue =>
+          issue.status === "done"
+      ).length;
+
+    const openIssues =
+      issueCount -
+      completedIssues;
+
+    const criticalIssues =
+      issues.filter(
+        issue =>
+          issue.priority ===
+            "critical" &&
+          issue.status !==
+            "done"
+      ).length;
+
+    let overdueIssues = 0;
+
+    const now =
+      new Date();
+
+    for (const issue of issues) {
+
+      if (
+        issue.due_date &&
+        new Date(
+          issue.due_date
+        ) < now &&
+        issue.status !==
+          "done"
+      ) {
+        overdueIssues++;
+      }
+    }
+
+    const progress =
+      issueCount === 0
+        ? 0
+        : Math.round(
+            (
+              completedIssues /
+              issueCount
+            ) * 100
+          );
+
+    let score = 100;
+
+    // Progress Penalty
+    if (
+      progress >= 50 &&
+      progress < 80
+    ) {
+      score -= 15;
+    } else if (
+      progress < 50
+    ) {
+      score -= 30;
+    }
+
+    // Open Issues Penalty
+    if (
+      openIssues >= 6 &&
+      openIssues <= 15
+    ) {
+      score -= 10;
+    } else if (
+      openIssues > 15
+    ) {
+      score -= 20;
+    }
+
+    // Critical Issues Penalty
+    if (
+      criticalIssues >= 1 &&
+      criticalIssues <= 3
+    ) {
+      score -= 15;
+    } else if (
+      criticalIssues > 3
+    ) {
+      score -= 25;
+    }
+
+    // Overdue Issues Penalty
+    if (
+      overdueIssues >= 1 &&
+      overdueIssues <= 3
+    ) {
+      score -= 20;
+    } else if (
+      overdueIssues > 3
+    ) {
+      score -= 30;
+    }
+
+    if (
+      score >= 80
+    ) {
+      healthy++;
+    } else if (
+      score >= 50
+    ) {
+      atRisk++;
+    } else {
+      delayed++;
+    }
+  }
+
+  return {
+    healthy,
+    atRisk,
+    delayed,
+  };
+}
 module.exports = {
   createProject,
   listProjects,
@@ -333,4 +519,5 @@ module.exports = {
   deleteProjectById,
   getProjectStats,
   getProjectInsights,
+  getProjectHealth,
 };

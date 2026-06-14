@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
-import {getProjects,getProjectStats, getProjectInsights} from "../services/projects.service";
+import {getProjects,getProjectStats, getProjectInsights, getProjectHealth} from "../services/projects.service";
 
 // ─── API INTEGRATION LAYER ────────────────────────────────────────────────────
 // Replace these with your actual API calls
@@ -9,8 +9,9 @@ import {getProjects,getProjectStats, getProjectInsights} from "../services/proje
 
 const API = {
   fetchProjects: async () => {
-    // TODO: return await fetch("/api/projects").then(r => r.json());
-    return MOCK_PROJECTS;
+    const response =
+    await getProjects();
+    return response.data;
   },
   fetchTimeline: async () => {
     // TODO: return await fetch("/api/projects/timeline").then(r => r.json());
@@ -190,24 +191,10 @@ function FeaturedCard({ project }) {
       <h5 className="text-base font-bold mb-2">{project.title}</h5>
       <p className="text-sm text-[#454654] mb-4 line-clamp-2">{project.desc}</p>
       <div className="flex mb-4">
-        {project.members.map((src, i) => (
-          <img
-            key={i}
-            src={src}
-            alt="member"
-            className="w-8 h-8 rounded-full border-2 border-white"
-            style={{ marginLeft: i > 0 ? "-8px" : "0" }}
-          />
-        ))}
-        {project.extra && (
-          <div
-            className="w-8 h-8 rounded-full bg-[#e0e3e5] border-2 border-white flex items-center justify-center text-[10px] font-bold text-[#454654]"
-            style={{ marginLeft: "-8px" }}
-          >
-            {project.extra}
-          </div>
-        )}
-      </div>
+  <span className="text-xs text-[#454654]">
+    No Team Data
+  </span>
+</div>
       <div className="space-y-1.5">
         <div className="flex justify-between text-[11px] font-semibold tracking-wider">
           <span>Progress</span>
@@ -227,6 +214,57 @@ function FeaturedCard({ project }) {
 // ─── TABLE ROW ────────────────────────────────────────────────────────────────
 
 function ProjectTableRow({ project, isLast }) {
+  const statusMap = {
+  active: {
+    text: "In Progress",
+    dotClass: "bg-blue-600",
+  },
+  completed: {
+    text: "Completed",
+    dotClass: "bg-emerald-500",
+  },
+  archived: {
+    text: "Archived",
+    dotClass: "bg-gray-500",
+  },
+};
+
+const statusInfo =
+  statusMap[project.status] ||
+  statusMap.active;
+  const priorityMap = {
+  critical: {
+    className:
+      "bg-red-100 text-red-700",
+  },
+
+  high: {
+    className:
+      "bg-orange-100 text-orange-700",
+  },
+
+  medium: {
+    className:
+      "bg-blue-100 text-blue-700",
+  },
+
+  low: {
+    className:
+      "bg-gray-100 text-gray-700",
+  },
+};
+
+const priorityInfo =
+  priorityMap[
+    project.priority
+  ] ||
+  priorityMap.low;
+  const progressColor =
+  project.progress >= 80
+    ? "bg-emerald-500"
+    : project.progress >= 50
+    ? "bg-blue-600"
+    : "bg-amber-500";
   return (
     <tr
       className={`hover:bg-[#f2f4f6] transition-colors duration-150 ${
@@ -246,7 +284,7 @@ function ProjectTableRow({ project, isLast }) {
       </td>
       <td className="px-4 py-4">
         <div className="flex">
-          {project.members.map((src, i) => (
+          {(project.members || []).map((src, i) => (
             <img
               key={i}
               src={src}
@@ -258,22 +296,27 @@ function ProjectTableRow({ project, isLast }) {
         </div>
       </td>
       <td className="px-4 py-4">
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${project.priorityClass}`}>
-          {project.priority}
-        </span>
+        <span
+  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${priorityInfo.className}`}
+>
+  {project.priority}
+</span>
       </td>
       <td className="px-4 py-4">
         <span className="flex items-center gap-1.5 text-sm">
-          <span className={`w-2 h-2 rounded-full inline-block ${project.statusDotClass}`} />
-          {project.statusText}
+          <span
+  className={`w-2 h-2 rounded-full inline-block ${statusInfo.dotClass}`}
+/>
+
+{statusInfo.text}
         </span>
       </td>
       <td className="px-4 py-4">
-        <div className={`w-24 h-1.5 ${project.progressBgClass} rounded-full`}>
+        <div className="w-24 h-1.5 bg-[#e5e7eb] rounded-full">
           <div
-            className={`${project.progressColorClass} h-full rounded-full`}
-            style={{ width: `${project.progress}%` }}
-          />
+  className={`${progressColor} h-full rounded-full`}
+  style={{ width: `${project.progress}%` }}
+/>
         </div>
       </td>
       <td className="px-4 py-4 text-right">
@@ -306,6 +349,12 @@ export default function Projects() {
     completion: 0,
     teamSize: 0,
   });
+  const [projectHealth, setProjectHealth] =
+  useState({
+    healthy: 0,
+    atRisk: 0,
+    delayed: 0,
+  });
   const [timeline, setTimeline] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -331,6 +380,27 @@ export default function Projects() {
 
     }
 };
+const fetchProjectHealthData =
+async () => {
+
+  try {
+
+    const response =
+      await getProjectHealth();
+
+    setProjectHealth(
+      response
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Project Health Error:",
+      error
+    );
+
+  }
+};
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -345,6 +415,7 @@ export default function Projects() {
           API.fetchDeadlines(),
           getProjectInsights(),
         ]);
+        console.log("PROJECTS RESPONSE:", p);
 
       setProjects(p);
 
@@ -353,6 +424,7 @@ export default function Projects() {
       );
 
       await fetchProjectStats();
+      await fetchProjectHealthData();
 
       setTimeline(t);
 
@@ -378,10 +450,13 @@ export default function Projects() {
   loadAll();
 }, []);
   // ── Derived Data ───────────────────────────────────────────────────────────
-  const filteredProjects = projects.filter(
-    (p) =>
-      p.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
-      p.meta.toLowerCase().includes(filterQuery.toLowerCase())
+  const filteredProjects =
+  projects.filter((p) =>
+    p.name
+      .toLowerCase()
+      .includes(
+        filterQuery.toLowerCase()
+      )
   );
 
   if (loading) {
@@ -394,25 +469,24 @@ export default function Projects() {
       </div>
     );
   }
-
-  const projectHealth = [
+const projectHealthDisplay = [
   {
     label: "Healthy",
-    count: "18 Projects",
+    count: `${projectHealth.healthy} Projects`,
     pct: 75,
     dotClass: "bg-emerald-500",
     barClass: "bg-emerald-500",
   },
   {
     label: "At Risk",
-    count: "4 Projects",
+    count: `${projectHealth.atRisk} Projects`,
     pct: 17,
     dotClass: "bg-amber-500",
     barClass: "bg-amber-500",
   },
   {
     label: "Delayed",
-    count: "2 Projects",
+    count: `${projectHealth.delayed} Projects`,
     pct: 8,
     dotClass: "bg-[#ba1a1a]",
     barClass: "bg-[#ba1a1a]",
@@ -671,7 +745,7 @@ export default function Projects() {
             <div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
               <h5 className="text-sm font-bold mb-4">Project Health</h5>
               <div className="flex flex-col gap-4">
-                {projectHealth.map((item) => (
+                {projectHealthDisplay.map((item) => (
                   <div key={item.label}>
                     <div className="flex justify-between text-[11px] font-semibold tracking-wider mb-1">
                       <span className="flex items-center gap-1.5">
