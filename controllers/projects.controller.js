@@ -138,6 +138,42 @@ async function getProjectHealth(
     }
   );
 }
+async function getUpcomingDeadlines(
+  req,
+  res
+) {
+
+  const data =
+    await projectsService
+      .getUpcomingDeadlines();
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data,
+    }
+  );
+}
+async function getProjectTimeline(
+  req,
+  res
+) {
+
+  const data =
+    await projectsService
+      .getProjectTimeline();
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data,
+    }
+  );
+}
 module.exports = {
   createProject,
   listProjects,
@@ -147,5 +183,7 @@ module.exports = {
   deleteProject,
   getProjectStats,
   getProjectInsights,
-   getProjectHealth,
+  getProjectHealth,
+  getUpcomingDeadlines,
+  getProjectTimeline,
 };

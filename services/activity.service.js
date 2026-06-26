@@ -1,28 +1,42 @@
 const pool = require("../utils/db");
 
 // ✅ CREATE ACTIVITY LOG
-async function logActivity({ entityType, entityId, action, message }) {
-  const result = await pool.query(
-    `INSERT INTO activity (entity_type, entity_id, action, message)
-     VALUES ($1, $2, $3, $4)
-     RETURNING *`,
-    [entityType, entityId, action, message || null]
+async function logActivity(
+  {
+    entityType,
+    entityId,
+    action,
+    message,
+    metadata,
+  },
+  client = pool
+) {
+  const result = await client.query(
+    `
+    INSERT INTO activity
+    (
+      entity_type,
+      entity_id,
+      action,
+      message,
+      metadata
+    )
+    VALUES ($1,$2,$3,$4,$5)
+    RETURNING *
+    `,
+    [
+      entityType,
+      entityId,
+      action,
+      message || null,
+      metadata
+        ? JSON.stringify(metadata)
+        : null,
+    ]
   );
 
-  const row = result.rows[0];
-
-  // keep same response structure as before
-  return {
-    id: row.id,
-    entityType: row.entity_type,
-    entityId: row.entity_id,
-    action: row.action,
-    message: row.message,
-    createdAt: row.created_at,
-  };
-}
-
-// ✅ LIST ACTIVITY BY ENTITY
+  return result.rows[0];
+}// ✅ LIST ACTIVITY BY ENTITY
 async function listActivityByEntity(entityType, entityId) {
   const result = await pool.query(
     `SELECT * FROM activity

@@ -1,90 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
-const initialIssues = [
-  {
-    id: "FF-1042",
-    title: "Database connection timeout on production cluster",
-    project: "Core Infrastructure",
-    priority: "Critical",
-    status: "In Progress",
-    assignee: { initials: "SR", name: "Sam Rivers", color: "bg-blue-100 text-blue-700" },
-    date: "Oct 22",
-  },
-  {
-    id: "FF-1039",
-    title: "Refactor auth middleware for OAuth2.1 compliance",
-    project: "Auth Services",
-    priority: "High",
-    status: "Open",
-    assignee: { initials: "AK", name: "Alex Kim", color: "bg-purple-100 text-purple-700" },
-    date: "Oct 24",
-  },
-  {
-    id: "FF-1035",
-    title: "Dark mode UI flicker on initial page load",
-    project: "ForgeFlow Web",
-    priority: "Medium",
-    status: "Resolved",
-    assignee: { initials: "MT", name: "Mia Thorne", color: "bg-pink-100 text-pink-700" },
-    date: "Oct 18",
-  },
-];
-
-const kpiCards = [
-  { icon: "list_alt", iconClass: "text-blue-700 bg-blue-50", label: "Total Issues", value: "1,284", trend: "+12%", trendClass: "text-emerald-600" },
-  { icon: "radio_button_checked", iconClass: "text-blue-600 bg-blue-50", label: "Open Issues", value: "156", trend: "+4%", trendClass: "text-red-600" },
-  { icon: "pending", iconClass: "text-amber-600 bg-amber-50", label: "In Progress", value: "42", trend: "~0%", trendClass: "text-slate-500" },
-  { icon: "check_circle", iconClass: "text-emerald-600 bg-emerald-50", label: "Resolved", value: "1,086", trend: "+18%", trendClass: "text-emerald-600" },
-  { icon: "priority_high", iconClass: "text-red-600 bg-red-50", label: "Critical", value: "8", trend: "+2%", trendClass: "text-red-600" },
-  { icon: "event_busy", iconClass: "text-purple-600 bg-purple-50", label: "Overdue", value: "14", trend: "+1%", trendClass: "text-red-600" },
-];
-
+import {DragDropContext,Droppable,Draggable,} from "@hello-pangea/dnd";
+import api from "../api/axios";
+import {getIssues, createIssue,getIssueKPIs} from "../services/issues.service";
 const activityTimeline = [
   { color: "bg-blue-600", title: "Issue FF-1042 reassigned", time: "10 minutes ago by David Chen" },
   { color: "bg-emerald-500", title: "FF-1035 marked as Resolved", time: "2 hours ago by Mia Thorne" },
   { color: "bg-amber-500", title: "New comment on FF-1039", time: "4 hours ago by Alex Kim" },
 ];
-
 const priorityLoad = [
   { label: "Critical", count: "8 Issues", widthClass: "w-[15%]", barClass: "bg-red-600" },
   { label: "High", count: "42 Issues", widthClass: "w-[45%]", barClass: "bg-amber-500" },
   { label: "Medium/Low", count: "106 Issues", widthClass: "w-[70%]", barClass: "bg-blue-500" },
-];
-
-const kanbanColumns = [
-  {
-    title: "Open",
-    countClass: "bg-slate-100 text-slate-600",
-    count: 24,
-    cards: [
-      { id: "FF-1039", dotClass: "bg-amber-500", title: "Refactor auth middleware for OAuth2.1 compliance", assignee: { initials: "AK", color: "bg-purple-100 text-purple-700" }, date: "Oct 24" },
-    ],
-  },
-  {
-    title: "In Progress",
-    countClass: "bg-blue-100 text-blue-700",
-    count: 8,
-    cards: [
-      { id: "FF-1042", dotClass: "bg-red-600", title: "Database connection timeout on production cluster", assignee: { initials: "SR", color: "bg-blue-100 text-blue-700" }, date: "Oct 22" },
-    ],
-  },
-  {
-    title: "Review",
-    countClass: "bg-slate-100 text-slate-600",
-    count: 12,
-    cards: [
-      { id: "FF-994", dotClass: "bg-slate-300", title: "Update API documentation for v2.4 Release", assignee: { initials: "LW", color: "bg-green-100 text-green-700" }, date: "Oct 18" },
-    ],
-  },
-  {
-    title: "Resolved",
-    countClass: "bg-emerald-50 text-emerald-700",
-    count: 156,
-    cards: [
-      { id: "FF-1035", resolved: true, title: "Dark mode UI flicker on initial page load", assignee: { initials: "MT", color: "bg-pink-100 text-pink-700" }, date: "" },
-    ],
-  },
 ];
 
 function PriorityBadge({ priority }) {
@@ -122,7 +50,6 @@ function StatusBadge({ status }) {
 }
 
 export default function IssuesManagement() {
-  const [issues, setIssues] = useState(initialIssues);
   const [view, setView] = useState("table");
   const [filterKeyword, setFilterKeyword] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
@@ -131,20 +58,342 @@ export default function IssuesManagement() {
   const [filterProject, setFilterProject] = useState("All");
   const [aiInput, setAiInput] = useState("");
   const [aiResult, setAiResult] = useState(false);
+  const [issues, setIssues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] =useState(false);
+  const [projects, setProjects] =useState([]);
+  const [users, setUsers] =useState([]);
+  const [showEditModal, setShowEditModal] =useState(false);
+  const [editingIssue, setEditingIssue] =useState(null);
+  const [selectedProject,setSelectedProject] = useState(null);
+  const [newIssue, setNewIssue] =
+  useState({
+    title: "",
+    projectId: "",
+    priority: "medium",
+    dueDate: "",
+    assignedTo: "",
+  });
+  const [issueKPIs, setIssueKPIs] =
+  useState({
+    totalIssues: 0,
+    openIssues: 0,
+    inProgress: 0,
+    resolved: 0,
+    critical: 0,
+    overdue: 0,
+  });
+  const kpiCards = [
+  { icon: "list_alt", iconClass: "text-blue-700 bg-blue-50", label: "Total Issues", value: issueKPIs.totalIssues, trend: "+12%", trendClass: "text-emerald-600" },
+  { icon: "radio_button_checked", iconClass: "text-blue-600 bg-blue-50", label: "Open Issues", value:  issueKPIs.openIssues, trend: "+4%", trendClass: "text-red-600" },
+  { icon: "pending", iconClass: "text-amber-600 bg-amber-50", label: "In Progress", value: issueKPIs.inProgress, trend: "~0%", trendClass: "text-slate-500" },
+  { icon: "check_circle", iconClass: "text-emerald-600 bg-emerald-50", label: "Resolved", value: issueKPIs.resolved, trend: "+18%", trendClass: "text-emerald-600" },
+  { icon: "priority_high", iconClass: "text-red-600 bg-red-50", label: "Critical", value:  issueKPIs.critical, trend: "+2%", trendClass: "text-red-600" },
+  { icon: "event_busy", iconClass: "text-purple-600 bg-purple-50", label: "Overdue", value:  issueKPIs.overdue, trend: "+1%", trendClass: "text-red-600" },
+];
 
+  const onDragEnd = async (result) => {
+
+  const {
+    source,
+    destination,
+  } = result;
+
+  if (!destination) {
+    return;
+  }
+
+  const sourceProject =
+    source.droppableId.substring(
+      0,
+      source.droppableId.lastIndexOf("-")
+    );
+
+  const sourceStatus =
+    source.droppableId.substring(
+      source.droppableId.lastIndexOf("-") + 1
+    );
+
+  const destinationProject =
+    destination.droppableId.substring(
+      0,
+      destination.droppableId.lastIndexOf("-")
+    );
+
+  const destinationStatus =
+    destination.droppableId.substring(
+      destination.droppableId.lastIndexOf("-") + 1
+    );
+
+  if (
+    sourceProject !==
+    destinationProject
+  ) {
+
+    alert(
+      "Moving issues between projects is not allowed"
+    );
+
+    return;
+
+  }
+
+  const boardCopy =
+    JSON.parse(
+      JSON.stringify(
+        projectBoards[
+          sourceProject
+        ]
+      )
+    );
+
+  const sourceColumn =
+    boardCopy[
+      sourceStatus
+    ];
+
+  const destinationColumn =
+    boardCopy[
+      destinationStatus
+    ];
+
+  const limit =
+    wipLimits[
+      destinationStatus
+    ];
+
+  if (
+    sourceStatus !==
+      destinationStatus &&
+    destinationColumn.length >=
+      limit
+  ) {
+
+    alert(
+      `WIP Limit reached for ${destinationStatus}`
+    );
+
+    return;
+
+  }
+
+  const [movedCard] =
+    sourceColumn.splice(
+      source.index,
+      1
+    );
+
+  movedCard.status =
+    destinationStatus;
+
+  destinationColumn.splice(
+    destination.index,
+    0,
+    movedCard
+  );
+
+  const reorderedIssues = [];
+
+  Object.entries(
+    boardCopy
+  ).forEach(
+    ([status, issues]) => {
+
+      issues.forEach(
+        (
+          issue,
+          index
+        ) => {
+
+          reorderedIssues.push({
+            issueId:
+              issue.id,
+            status,
+            rank:
+              index + 1,
+          });
+
+        }
+      );
+
+    }
+  );
+
+  try {
+
+    await api.patch(
+      "/issues/reorder",
+      {
+        issues:
+          reorderedIssues,
+      }
+    );
+
+    await loadIssues();
+
+  } catch (error) {
+
+    console.error(
+      "Failed to reorder board",
+      error
+    );
+
+  }
+
+};
+const projectMap =
+  Object.fromEntries(
+    projects.map(
+      (project) => [
+        project.id,
+        project.name,
+      ]
+    )
+  );
+
+  const projectBoards = {};
+
+issues.forEach((issue) => {
+
+  const projectName =
+    projectMap[
+      issue.project_id
+    ] || "Unknown Project";
+
+  if (!projectBoards[projectName]) {
+
+    projectBoards[projectName] = {
+      backlog: [],
+      todo: [],
+      in_progress: [],
+      done: [],
+    };
+
+  }
+
+  projectBoards[
+    projectName
+  ][issue.status].push(issue);
+
+});
+
+Object.values(projectBoards).forEach(
+  (board) => {
+
+    Object.values(board).forEach(
+      (column) => {
+
+        column.sort(
+          (a, b) =>
+            (a.rank || 999999) -
+            (b.rank || 999999)
+        );
+
+      }
+    );
+
+  }
+);
+const columnConfig = [
+  {
+    key: "todo",
+    title: "TODO",
+    countClass:
+      "bg-blue-100 text-blue-700",
+  },
+  {
+    key: "in_progress",
+    title: "IN PROGRESS",
+    countClass:
+      "bg-yellow-100 text-yellow-700",
+  },
+  {
+    key: "done",
+    title: "DONE",
+    countClass:
+      "bg-emerald-100 text-emerald-700",
+  },
+  {
+  key: "backlog",
+  title: "Backlog",
+  countClass:
+    "bg-slate-100 text-slate-700",
+},
+];
+const wipLimits = {
+  backlog: Infinity,
+  todo: 3,
+  in_progress: 5,
+  done: Infinity,
+};
+const priorityStyles = {
+  low: "bg-gray-100 text-gray-700",
+  medium: "bg-blue-100 text-blue-700",
+  high: "bg-orange-100 text-orange-700",
+  critical: "bg-red-100 text-red-700",
+};
+  const userMap =
+  Object.fromEntries(
+    users.map((user) => [
+      user.id,
+      user.name,
+    ])
+  );
   const filteredIssues = issues.filter((issue) => {
     const keyword = filterKeyword.toLowerCase();
     const matchesKeyword =
-      !keyword ||
-      issue.title.toLowerCase().includes(keyword) ||
-      issue.id.toLowerCase().includes(keyword) ||
-      issue.project.toLowerCase().includes(keyword);
+  !keyword ||
+  (issue.title || "")
+    .toLowerCase()
+    .includes(keyword) ||
+  String(issue.id || "")
+    .toLowerCase()
+    .includes(keyword);
     const matchesStatus = filterStatus === "All" || issue.status === filterStatus;
     const matchesPriority = filterPriority === "All" || issue.priority === filterPriority;
-    const matchesProject = filterProject === "All" || issue.project === filterProject;
-    return matchesKeyword && matchesStatus && matchesPriority && matchesProject;
+   const matchesProject =filterProject === "All" ||projectMap[issue.project_id] === filterProject;
+   const matchesAssignee =filterAssignee === "Everyone" ||( filterAssignee ==="Unassigned" &&!issue.assigned_to  ) ||issue.assigned_to ===filterAssignee;
+    return matchesKeyword && matchesStatus && matchesPriority && matchesProject && matchesAssignee ;
   });
+const backlogIssues = issues
+  .filter(
+    (issue) =>
+      issue.status === "backlog"
+  )
+  .sort(
+    (a, b) =>
+      (a.rank || 0) -
+      (b.rank || 0)
+  );
 
+projects.forEach((project) => {
+  projectMap[project.id] =
+    project.name;
+});
+  const backlogProjects = {};
+
+backlogIssues.forEach((issue) => {
+
+  const projectName =
+    projectMap[
+      issue.project_id
+    ] || "Unknown Project";
+
+  if (
+    !backlogProjects[
+      projectName
+    ]
+  ) {
+    backlogProjects[
+      projectName
+    ] = [];
+  }
+
+  backlogProjects[
+    projectName
+  ].push(issue);
+
+});
   const handleReset = () => {
     setFilterKeyword("");
     setFilterStatus("All");
@@ -156,7 +405,271 @@ export default function IssuesManagement() {
   const handleAnalyze = () => {
     if (aiInput.trim()) setAiResult(true);
   };
+async function loadIssues() {
+  try {
+    setLoading(true);
 
+    const result =
+  await getIssues();
+
+setIssues(
+  result.data || []
+);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setLoading(false);
+  }
+}
+async function loadProjects() {
+  try {
+    const response = await api.get(
+      "/projects?limit=100"
+    );
+
+    setProjects(
+      response.data.data || []
+    );
+  } catch (error) {
+    console.error(
+      "Failed to load projects",
+      error
+    );
+  }
+}
+
+async function loadUsers() {
+  try {
+    const response = await api.get(
+      "/users?limit=100"
+    );
+
+    setUsers(
+      response.data.data || []
+    );
+  } catch (error) {
+    console.error(
+      "Failed to load users",
+      error
+    );
+  }
+}
+async function handleCreateIssue() {
+  try {
+    if (
+      !newIssue.title ||
+      !newIssue.projectId
+    ) {
+      alert(
+        "Title and Project are required"
+      );
+
+      return;
+    }
+
+    await createIssue({
+      title: newIssue.title,
+      projectId:
+        newIssue.projectId,
+      priority:
+        newIssue.priority,
+      dueDate:
+        newIssue.dueDate || null,
+      assignedTo:
+        newIssue.assignedTo || null,
+    });
+
+    await loadIssues();
+
+    setShowCreateModal(false);
+
+    setNewIssue({
+      title: "",
+      projectId: "",
+      priority: "medium",
+      dueDate: "",
+      assignedTo: "",
+    });
+
+  } catch (error) {
+
+    console.error(
+      "Failed to create issue",
+      error
+    );
+
+  }
+}
+const loadIssueKPIs =
+  async () => {
+
+    try {
+
+      const response =
+        await getIssueKPIs();
+
+      setIssueKPIs(
+        response.data
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Failed to load KPI data",
+        error
+      );
+
+    }
+
+  };
+  useEffect(() => {
+    loadIssues();
+    loadProjects();
+    loadUsers();
+    loadIssueKPIs();
+  },[]);
+  const onBacklogDragEnd = async (
+  result
+) => {
+
+  const {
+    destination,
+    source,
+  } = result;
+
+  if (!destination) {
+    return;
+  }
+
+  if (
+    source.droppableId !==
+    destination.droppableId
+  ) {
+    return;
+  }
+
+  const projectName =
+    source.droppableId.replace(
+      "backlog-",
+      ""
+    );
+
+  const issues =
+    [...backlogProjects[projectName]];
+
+  const [movedIssue] =
+    issues.splice(source.index, 1);
+
+  issues.splice(
+    destination.index,
+    0,
+    movedIssue
+  );
+
+  const reorderedIssues =
+    issues.map(
+      (issue, index) => ({
+        issueId: issue.id,
+        status: "backlog",
+        rank: index + 1,
+      })
+    );
+
+  try {
+
+    await api.patch(
+      "/issues/reorder",
+      {
+        issues:
+          reorderedIssues,
+      }
+    );
+
+    await loadIssues();
+
+  } catch (error) {
+
+    console.error(
+      "Backlog reorder failed",
+      error
+    );
+
+  }
+};
+const openEditModal = (issue) => {
+  setEditingIssue({
+    ...issue,
+    dueDate: issue.due_date
+      ? issue.due_date.split("T")[0]
+      : "",
+  });
+
+  setShowEditModal(true);
+};
+const handleUpdateIssue =
+  async () => {
+    try {
+      await api.patch(
+        `/issues/${editingIssue.id}`,
+        {
+          title:
+            editingIssue.title,
+
+          priority:
+            editingIssue.priority,
+
+          dueDate:
+            editingIssue.dueDate,
+
+          assignedTo:
+            editingIssue.assigned_to,
+        }
+      );
+
+      setShowEditModal(false);
+
+      await loadIssues();
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  const handleDeleteIssue =
+  async () => {
+
+  const confirmed =
+    window.confirm(
+      "Are you sure you want to delete this issue?"
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+
+    await api.delete(
+      `/issues/${editingIssue.id}`
+    );
+
+    setShowEditModal(false);
+
+    setEditingIssue(null);
+
+    await loadIssues();
+
+  } catch (error) {
+
+    console.error(
+      "Delete failed",
+      error
+    );
+
+    alert(
+      "Failed to delete issue"
+    );
+  }
+};
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] font-sans">
         <Sidebar />
@@ -178,7 +691,10 @@ export default function IssuesManagement() {
                 <span className="material-symbols-outlined text-[18px]">download</span>
                 Export Issues
               </button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-[#2036bd] text-white rounded-lg hover:opacity-90 transition-opacity text-xs font-semibold shadow-sm">
+              <button 
+              onClick={() =>
+    setShowCreateModal(true)}
+    className="flex items-center gap-2 px-4 py-2 bg-[#2036bd] text-white rounded-lg hover:opacity-90 transition-opacity text-xs font-semibold shadow-sm">
                 <span className="material-symbols-outlined text-[18px]">add</span>
                 Create Issue
               </button>
@@ -217,9 +733,10 @@ export default function IssuesManagement() {
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="All">Status: All</option>
-              <option>Open</option>
-              <option>In Progress</option>
-              <option>Resolved</option>
+              <option value="backlog">Backlog</option>
+              <option value="todo">Todo</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
             </select>
             <select
               className="border border-[#c5c5d7] rounded-lg px-3 py-1.5 text-[13px] bg-white focus:ring-1 focus:ring-[#2036bd] outline-none"
@@ -227,30 +744,56 @@ export default function IssuesManagement() {
               onChange={(e) => setFilterPriority(e.target.value)}
             >
               <option value="All">Priority: All</option>
-              <option>Critical</option>
-              <option>High</option>
-              <option>Medium</option>
-              <option>Low</option>
+             <option value="critical">Critical</option>
+             <option value="high">High</option>
+             <option value="medium">Medium</option>
+             <option value="low">Low</option>
             </select>
             <select
               className="border border-[#c5c5d7] rounded-lg px-3 py-1.5 text-[13px] bg-white focus:ring-1 focus:ring-[#2036bd] outline-none"
               value={filterAssignee}
               onChange={(e) => setFilterAssignee(e.target.value)}
             >
-              <option value="Everyone">Assignee: Everyone</option>
-              <option>Me</option>
-              <option>Dev Team</option>
+              <option value="Everyone">
+                Assignee: Everyone
+              </option>
+          <option value="Unassigned">
+              Unassigned
+          </option>
+        {users.map((user) => (
+          <option
+           key={user.id}
+          value={user.id}
+         >
+        {user.name}
+        </option>
+      ))}
             </select>
-            <select
-              className="border border-[#c5c5d7] rounded-lg px-3 py-1.5 text-[13px] bg-white focus:ring-1 focus:ring-[#2036bd] outline-none"
-              value={filterProject}
-              onChange={(e) => setFilterProject(e.target.value)}
-            >
-              <option value="All">Project: All</option>
-              <option>Core Infrastructure</option>
-              <option>Auth Services</option>
-              <option>ForgeFlow Web</option>
-            </select>
+           <select
+  className="border border-[#c5c5d7] rounded-lg px-3 py-1.5 text-[13px] bg-white focus:ring-1 focus:ring-[#2036bd] outline-none"
+  value={filterProject}
+  onChange={(e) =>
+    setFilterProject(
+      e.target.value
+    )
+  }
+>
+  <option value="All">
+    Project: All
+  </option>
+
+  {projects.map(
+    (project) => (
+      <option
+        key={project.id}
+        value={project.name}
+      >
+        {project.name}
+      </option>
+    )
+  )}
+</select>
+
             <button
               onClick={handleReset}
               className="px-3 py-1.5 border border-[#c5c5d7] rounded-lg text-[13px] hover:bg-slate-50 transition-colors"
@@ -273,6 +816,16 @@ export default function IssuesManagement() {
             >
               Kanban Board
             </button>
+            <button
+  onClick={() => setView("backlog")}
+  className={`px-4 py-1.5 rounded-md text-[12px] font-semibold transition-all ${
+    view === "backlog"
+      ? "bg-white shadow-sm text-[#2036bd]"
+      : "text-[#505f76] hover:text-[#191c1e]"
+  }`}
+>
+  Backlog
+</button>
           </div>
 
           {/* Table View */}
@@ -302,14 +855,13 @@ export default function IssuesManagement() {
                         <td className="px-4 py-3"><PriorityBadge priority={issue.priority} /></td>
                         <td className="px-4 py-3"><StatusBadge status={issue.status} /></td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${issue.assignee.color}`}>
-                              {issue.assignee.initials}
-                            </div>
-                            <span className="text-[13px]">{issue.assignee.name}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-right">
+                        {issue.assigned_to
+                        ? userMap[
+                        issue.assigned_to
+                       ] || "Unknown User"
+                        : "Unassigned"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
                           <button className="p-1 hover:bg-[#eceef0] rounded transition-colors text-[#757686] group-hover:text-[#2036bd]">
                             <span className="material-symbols-outlined text-[20px]">more_vert</span>
                           </button>
@@ -335,55 +887,275 @@ export default function IssuesManagement() {
 
           {/* Kanban View */}
           {view === "kanban" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {kanbanColumns.map((col) => (
-                <div key={col.title} className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between px-2 mb-1">
-                    <h4 className="text-[12px] font-bold uppercase text-[#505f76]">
-                      {col.title}{" "}
-                      <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${col.countClass}`}>{col.count}</span>
-                    </h4>
-                    <button className="p-1 hover:bg-[#eceef0] rounded transition-colors">
-                      <span className="material-symbols-outlined text-[20px]">add</span>
-                    </button>
-                  </div>
-                  <div className="flex flex-col gap-3 min-h-64">
-                    {col.cards.map((card) => (
-                      <div
-                        key={card.id}
-                        className={`p-3 rounded-xl border border-[#c5c5d7] shadow-sm transition-all hover:border-[#2036bd] cursor-grab active:cursor-grabbing ${card.resolved ? "bg-[#f2f4f6] grayscale opacity-60" : "bg-white"}`}
-                      >
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="font-mono text-[12px] text-[#757686]">{card.id}</span>
-                          {card.resolved ? (
-                            <span className="material-symbols-outlined text-emerald-600 text-[16px]">check_circle</span>
-                          ) : (
-                            <span className={`w-2 h-2 rounded-full ${card.dotClass}`}></span>
-                          )}
-                        </div>
-                        <h5 className="text-[14px] font-medium mb-3">{card.title}</h5>
-                        <div className="flex justify-between items-center">
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${card.assignee.color}`}>
-                            {card.assignee.initials}
-                          </div>
-                          {card.resolved ? (
-                            <span className="text-emerald-600 text-[11px] font-semibold">Done</span>
-                          ) : (
-                            <div className="flex items-center gap-1 text-[#757686] text-[13px]">
-                              <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                              <span>{card.date}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+  <DragDropContext onDragEnd={onDragEnd}>
+	{!selectedProject && (
+
+  <div
+    className="
+      grid
+      grid-cols-1
+      md:grid-cols-2
+      lg:grid-cols-3
+      gap-6
+    "
+  >
+
+    {Object.keys(projectBoards).map(
+      (projectName) => (
+
+        <div
+          key={projectName}
+          onClick={() =>
+            setSelectedProject(
+              projectName
+            )
+          }
+          className="
+            bg-white
+            border
+            border-[#c5c5d7]
+            rounded-xl
+            p-6
+            cursor-pointer
+            hover:shadow-lg
+            transition
+          "
+        >
+
+          <h3
+            className="
+              text-xl
+              font-bold
+            "
+          >
+            {projectName}
+          </h3>
+
+          <p
+            className="
+              text-gray-500
+              mt-2
+            "
+          >
+            Open Kanban Board
+          </p>
+
         </div>
 
+      )
+    )}
+
+  </div>
+
+)}
+{selectedProject && (
+<>
+<button
+  onClick={() =>
+    setSelectedProject(null)
+  }
+  className="
+    mb-4
+    px-4
+    py-2
+    border
+    rounded-lg
+  "
+>
+  ← Back
+</button>
+   {Object.entries(projectBoards)
+  .filter(
+    ([projectName]) =>
+      projectName === selectedProject
+  )
+  .map(
+    ([projectName, columns]) => (
+        <div
+          key={projectName}
+          className="mb-12"
+        >
+
+          <div className="mb-4">
+            <h2 className="text-2xl font-bold">
+              {projectName}
+            </h2>
+          </div>
+
+          <div
+            className="
+              grid
+              grid-cols-1
+              md:grid-cols-2
+              lg:grid-cols-4
+              gap-4
+            "
+          > 
+             {columnConfig.map((col) => {
+  const cards =projectBoards[selectedProject]?.[col.key] || [];;
+  return (
+    <Droppable
+      droppableId={`${projectName}-${col.key}`}
+      key={col.key}
+    >
+      {(provided) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.droppableProps}
+          className="flex flex-col gap-3"
+        >
+          <div className="flex items-center justify-between px-2 mb-1">
+            <h4 className="text-[12px] font-bold uppercase text-[#505f76]">
+              {col.title}
+
+<span
+  className="
+    text-[10px]
+    ml-2
+    text-gray-500
+  "
+>
+  ({cards.length}/
+  {wipLimits[col.key] === Infinity
+    ? "∞"
+    : wipLimits[col.key]})
+</span>
+              <span
+                className={`ml-2 px-1.5 py-0.5 rounded text-xs ${col.countClass}`}
+              >
+                {cards.length}
+              </span>
+            </h4>
+
+            <button className="p-1 hover:bg-[#eceef0] rounded transition-colors">
+              <span className="material-symbols-outlined text-[20px]">
+                add
+              </span>
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-3 min-h-64">
+            {cards.length === 0 && (
+              <div className="text-sm text-gray-400 text-center py-8">
+                No issues
+              </div>
+            )}
+
+            {cards.map((card, index) => (
+  <Draggable
+    key={card.id}
+    draggableId={card.id}
+    index={index}
+  >
+    {(provided) => (
+      <div
+  ref={provided.innerRef}
+  {...provided.draggableProps}
+  {...provided.dragHandleProps}
+  onDoubleClick={() =>{
+    openEditModal(card)
+  }}
+  className="
+    p-3
+    rounded-xl
+    border
+    border-[#c5c5d7]
+    bg-white
+    cursor-pointer
+  "
+>
+                <p className="text-xs font-mono text-gray-500">
+                  FF-{card.id.slice(0, 4)}
+                </p>
+
+                <h5 className="font-medium mt-2">
+                  {card.title}
+                </h5>
+
+                <div className="mt-2">
+                  <span
+                    className={`
+                      text-xs
+                      px-2
+                      py-1
+                      rounded
+                      ${priorityStyles[card.priority]}
+                    `}
+                  >
+                    {card.priority}
+                  </span>
+                </div>
+              </div>
+)}
+</Draggable>
+))}
+                       {provided.placeholder}
+          </div>
+        </div>
+      )}
+    </Droppable>
+  );
+})}
+        </div>
+      </div>
+    ))}
+</>
+)}
+
+  </DragDropContext>
+)}
+{view === "backlog" && (
+  <DragDropContext onDragEnd={onBacklogDragEnd}>
+    <div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
+      <h3 className="text-lg font-semibold mb-4">Backlog</h3>
+
+      {backlogIssues.length === 0 ? (
+        <div className="text-center text-gray-500 py-10">No backlog issues</div>
+      ) : (
+        <div className="space-y-3">
+          {Object.entries(backlogProjects).map(([projectName, issues]) => (
+            <div key={projectName} className="mb-8">
+              <div className="mb-4">
+                <h3 className="text-lg font-bold">{projectName}</h3>
+                <p className="text-sm text-gray-500">{issues.length} backlog issue(s)</p>
+              </div>
+
+              <Droppable droppableId={`backlog-${projectName}`}>
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+                    {issues.map((issue, index) => (
+                      <Draggable key={issue.id} draggableId={issue.id} index={index}>
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            onDoubleClick={() => openEditModal(issue)}
+                            className="bg-white border rounded-xl p-4 cursor-move"
+                          >
+                            <div className="flex justify-between">
+                              <div>
+                                <h4 className="font-semibold">{issue.title}</h4>
+                                <p className="text-xs text-gray-500">Rank #{issue.rank}</p>
+                              </div>
+                              <span className={`px-2 py-1 rounded text-xs ${priorityStyles[issue.priority]}`}>{issue.priority}</span>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  </DragDropContext>
+)}
+        </div>
         {/* Right Sidebar */}
         <aside className="w-80 bg-white border-l border-[#c5c5d7] p-4 flex flex-col gap-6 overflow-y-auto min-h-screen">
           {/* Issue Insights */}
@@ -473,8 +1245,319 @@ export default function IssuesManagement() {
             )}
           </section>
         </aside>
+       {showCreateModal && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+
+    <div className="bg-white rounded-xl p-6 w-[500px]">
+
+      <h2 className="text-2xl font-bold mb-4">
+        Create Issue
+      </h2>
+
+      <div className="space-y-4">
+
+        {/* Title */}
+        <input
+          type="text"
+          placeholder="Issue Title"
+          value={newIssue.title}
+          onChange={(e) =>
+            setNewIssue({
+              ...newIssue,
+              title: e.target.value,
+            })
+          }
+          className="w-full border rounded-lg p-3"
+        />
+
+        {/* Project */}
+        <select
+          value={newIssue.projectId}
+          onChange={(e) =>
+            setNewIssue({
+              ...newIssue,
+              projectId: e.target.value,
+            })
+          }
+          className="w-full border rounded-lg p-3"
+        >
+          <option value="">
+            Select Project
+          </option>
+
+          {projects.map((project) => (
+            <option
+              key={project.id}
+              value={project.id}
+            >
+              {project.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Priority */}
+        <select
+          value={newIssue.priority}
+          onChange={(e) =>
+            setNewIssue({
+              ...newIssue,
+              priority: e.target.value,
+            })
+          }
+          className="w-full border rounded-lg p-3"
+        >
+          <option value="low">
+            Low Priority
+          </option>
+
+          <option value="medium">
+            Medium Priority
+          </option>
+
+          <option value="high">
+            High Priority
+          </option>
+
+          <option value="critical">
+            Critical Priority
+          </option>
+        </select>
+
+        {/* Due Date */}
+        <input
+          type="date"
+          value={newIssue.dueDate}
+          onChange={(e) =>
+            setNewIssue({
+              ...newIssue,
+              dueDate: e.target.value,
+            })
+          }
+          className="w-full border rounded-lg p-3"
+        />
+        
+        {/* Assignee */}
+        <select
+          value={newIssue.assignedTo}
+          onChange={(e) =>
+            setNewIssue({
+              ...newIssue,
+              assignedTo: e.target.value,
+            })
+          }
+          className="w-full border rounded-lg p-3"
+        >
+          <option value="">
+            Select User
+          </option>
+
+          {users.map((user) => (
+            <option
+              key={user.id}
+              value={user.id}
+            >
+              {user.name}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex justify-end gap-3 pt-4">
+
+          <button
+            onClick={() =>
+              setShowCreateModal(false)
+            }
+            className="px-4 py-2 border rounded-lg"
+          >
+            Cancel
+          </button>
+
+          <button
+           onClick={handleCreateIssue}
+            className="px-4 py-2 bg-[#2036bd] text-white rounded-lg"
+          >
+            Create
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+)}
+{showEditModal && editingIssue && (
+  <div className="
+    fixed inset-0
+    bg-black/40
+    flex items-center
+    justify-center
+    z-50
+  ">
+    <div className="
+      bg-white
+      rounded-xl
+      p-6
+      w-[500px]
+    ">
+      <h2 className="
+        text-xl
+        font-bold
+        mb-4
+      ">
+        Edit Issue
+      </h2>
+
+      <div className="space-y-4">
+
+        <input
+          type="text"
+          value={editingIssue.title}
+          onChange={(e) =>
+            setEditingIssue({
+              ...editingIssue,
+              title: e.target.value,
+            })
+          }
+          className="
+            w-full
+            border
+            rounded-lg
+            p-3
+          "
+        />
+
+        <select
+          value={editingIssue.priority}
+          onChange={(e) =>
+            setEditingIssue({
+              ...editingIssue,
+              priority: e.target.value,
+            })
+          }
+          className="
+            w-full
+            border
+            rounded-lg
+            p-3
+          "
+        >
+          <option value="low">
+            Low
+          </option>
+
+          <option value="medium">
+            Medium
+          </option>
+
+          <option value="high">
+            High
+          </option>
+
+          <option value="critical">
+            Critical
+          </option>
+        </select>
+
+        <input
+          type="date"
+          value={
+            editingIssue.dueDate
+          }
+          onChange={(e) =>
+            setEditingIssue({
+              ...editingIssue,
+              dueDate:
+                e.target.value,
+            })
+          }
+          className="
+            w-full
+            border
+            rounded-lg
+            p-3
+          "
+        />
+        <select
+  value={
+    editingIssue.assigned_to || ""
+  }
+  onChange={(e) =>
+    setEditingIssue({
+      ...editingIssue,
+      assigned_to: e.target.value,
+    })
+  }
+  className="
+    w-full
+    border
+    rounded-lg
+    p-3
+  "
+>
+  <option value="">
+    Unassigned
+  </option>
+
+  {users.map((user) => (
+    <option
+      key={user.id}
+      value={user.id}
+    >
+      {user.name}
+    </option>
+  ))}
+</select>
+        <div className="
+  flex justify-end
+  gap-2
+">
+
+  <button
+    onClick={handleDeleteIssue}
+    className="
+      px-4 py-2
+      bg-red-500
+      text-white
+      rounded-lg
+    "
+  >
+    Delete
+  </button>
+
+  <button
+    onClick={() =>
+      setShowEditModal(false)
+    }
+    className="
+      px-4 py-2
+      border
+      rounded-lg
+    "
+  >
+    Cancel
+  </button>
+
+  <button
+    onClick={handleUpdateIssue}
+    className="
+      px-4 py-2
+      bg-[#2036bd]
+      text-white
+      rounded-lg
+    "
+  >
+    Save
+  </button>
+
+</div>
+      </div>
+    </div>
+  </div>
+)}
       </main>
     </div>
-     </div>
+  </div>
   );
 }

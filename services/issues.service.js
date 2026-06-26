@@ -11,7 +11,7 @@ const {
 const { logActivity } = require("./activity.service");
 
 function assertAllowedStatus(status) {
-  return assertOneOf(status, "status", ["todo", "in_progress", "done"]);
+  return assertOneOf(status, "status", ["backlog","todo", "in_progress", "done"]);
 }
 
 function validateTitle(title) {
@@ -104,7 +104,7 @@ async function createIssue(
         crypto.randomUUID(),
         validateTitle(title),
         projectId,
-        "todo",
+        "backlog",
         validatePriority(priority),
         validateDueDate(dueDate),
         rank,
@@ -157,6 +157,7 @@ async function listIssues({
   order = "desc",
   page = 1,
   limit = 10,
+  view,
 }) {
   const values = [];
   const conditions = [];
@@ -198,6 +199,16 @@ if (q) {
     updatedAt: "updated_at",
   };
 
+  if (view === "board") {
+
+  query += `
+    ORDER BY
+      status ASC,
+      rank ASC NULLS LAST
+  `;
+
+} else {
+
   const sortColumn =
     sortMap[sort] || "created_at";
 
@@ -205,6 +216,8 @@ if (q) {
     ORDER BY ${sortColumn}
     ${order.toUpperCase()}
   `;
+
+}
 
   const offset = (page - 1) * limit;
 
@@ -326,6 +339,34 @@ async function updateIssue(
   const updatedIssue = updated.rows[0];
 
   const statusChanged = oldStatus !== updatedIssue.status;
+  if (statusChanged) {
+
+  await pool.query(
+    `
+    INSERT INTO issue_status_history
+    (
+      issue_id,
+      from_status,
+      to_status,
+      changed_by
+    )
+    VALUES
+    (
+      $1,
+      $2,
+      $3,
+      $4
+    )
+    `,
+    [
+      updatedIssue.id,
+      oldStatus,
+      updatedIssue.status,
+      currentUser.id,
+    ]
+  );
+
+}
 
   await logActivity({
     entityType: "issue",
@@ -407,7 +448,181 @@ async function listIssuesByProjectId(projectId) {
 
   return result.rows;
 }
+async function reorderIssues(
+  issues,
+  currentUser
+) {
+  const client = await pool.connect();
 
+  try {
+    await client.query("BEGIN");
+
+    for (const item of issues) {
+
+  // Get current status first
+
+  const existingIssue =
+    await client.query(
+      `
+      SELECT id, status
+      FROM issues
+      WHERE id = $1
+      `,
+      [item.issueId]
+    );
+
+  const oldStatus =
+    existingIssue.rows[0].status;
+
+  // Update issue
+
+  await client.query(
+    `
+    UPDATE issues
+    SET status = $1,
+        rank = $2,
+        updated_by = $3,
+        updated_at = $4
+    WHERE id = $5
+    `,
+    [
+      item.status,
+      item.rank,
+      currentUser.id,
+      new Date().toISOString(),
+      item.issueId,
+    ]
+  );
+
+  // Status changed?
+
+  if (
+    oldStatus !== item.status
+  ) {
+    await client.query(
+  `
+  INSERT INTO issue_status_history
+  (
+    issue_id,
+    from_status,
+    to_status,
+    changed_by
+  )
+  VALUES
+  (
+    $1,
+    $2,
+    $3,
+    $4
+  )
+  `,
+  [
+    item.issueId,
+    oldStatus,
+    item.status,
+    currentUser.id,
+  ]
+);
+    await logActivity(
+  {
+    entityType: "issue",
+    entityId: item.issueId,
+    action: "issue_status_changed",
+    message: `Issue moved from ${oldStatus} to ${item.status}`,
+    metadata: {
+      fromStatus: oldStatus,
+      toStatus: item.status,
+    },
+  },
+  client
+);
+  } else {
+
+   await logActivity(
+  {
+    entityType: "issue",
+    entityId: item.issueId,
+    action: "issue_reordered",
+    message: "Issue reordered on board",
+  },
+  client
+);
+  }
+}
+
+    await client.query("COMMIT");
+
+    return {
+      success: true,
+    };
+
+  } catch (error) {
+
+    await client.query("ROLLBACK");
+
+    throw error;
+
+  } finally {
+
+    client.release();
+
+  }
+}
+async function getIssueKPIs() {
+
+  const result = await pool.query(
+    `
+    SELECT
+
+      COUNT(*) AS total_issues,
+
+      COUNT(*) FILTER (
+        WHERE status != 'done'
+      ) AS open_issues,
+
+      COUNT(*) FILTER (
+        WHERE status = 'in_progress'
+      ) AS in_progress,
+
+      COUNT(*) FILTER (
+        WHERE status = 'done'
+      ) AS resolved,
+
+      COUNT(*) FILTER (
+        WHERE priority = 'critical'
+      ) AS critical,
+
+      COUNT(*) FILTER (
+        WHERE due_date < NOW()
+        AND status != 'done'
+      ) AS overdue
+
+    FROM issues
+    `
+  );
+
+  const row = result.rows[0];
+
+  return {
+    totalIssues:
+      Number(row.total_issues),
+
+    openIssues:
+      Number(row.open_issues),
+
+    inProgress:
+      Number(row.in_progress),
+
+    resolved:
+      Number(row.resolved),
+
+    critical:
+      Number(row.critical),
+
+    overdue:
+      Number(row.overdue),
+  };
+}
 module.exports = {
   createIssue,
   listIssues,
@@ -416,4 +631,6 @@ module.exports = {
   assignIssueById,
   deleteIssue,
   listIssuesByProjectId,
+  reorderIssues,
+  getIssueKPIs,
 };

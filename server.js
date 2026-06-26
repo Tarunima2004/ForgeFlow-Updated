@@ -15,6 +15,7 @@ const { handleDocsRoutes } = require("./routes/docsRoutes");
 const { seedData } = require("./utils/seedData");
 const { handleDashboardRoutes} = require("./routes/dashboard.routes");
 const { handleActivityRoutes,} = require("./routes/activity.routes");
+const {handleProjectMembersRoutes,} = require("./routes/projectMembers.routes");
 
 const PORT = process.env.PORT || 3000;
 
@@ -85,6 +86,9 @@ const server = http.createServer(async (req, res) => {
       memoryUsage: process.memoryUsage(),
     },
   });
+}
+if (await handleProjectMembersRoutes( req, res, path)) {
+  return;
 }
 
 if (await handleDocsRoutes(req, res, path)) return;

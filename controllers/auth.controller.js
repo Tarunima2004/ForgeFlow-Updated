@@ -32,21 +32,39 @@ async function register(req, res) {
         "password"
       );
 
-    const role =
-      body.role === undefined
-        ? "member"
-        : assertOneOf(
-            body.role,
-            "role",
-            ["admin", "member"]
-          );
+    const role = "member";
+    const dept =
+  assertOneOf(
+    body.dept,
+    "dept",
+    [
+      "Engineering",
+      "Fashion",
+      "Finance",
+      "Electronics",
+      "Biotech",
+    ]
+  );
+  const jobRole =
+  assertRequiredString(
+    body.jobRole,
+    "jobRole"
+  );
 
+const phoneNumber =
+  assertRequiredString(
+    body.phoneNumber,
+    "phoneNumber"
+  );
     const data =
       await authService.register({
         name,
         email,
         password,
         role,
+        dept,
+        jobRole,
+        phoneNumber,
       });
 
     return sendJson(

@@ -38,3 +38,27 @@ const response = await fetch(
 
   return result.data;
 }
+export async function getUpcomingDeadlines() {
+
+  const response =
+    await fetch(
+      "http://localhost:3000/projects/deadlines"
+    );
+
+  const result =
+    await response.json();
+
+  return result;
+}
+export async function getProjectTimeline() {
+
+  const response =
+    await fetch(
+      "http://localhost:3000/projects/timeline"
+    );
+
+  const result =
+    await response.json();
+
+  return result;
+}

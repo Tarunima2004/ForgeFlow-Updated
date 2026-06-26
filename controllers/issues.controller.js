@@ -14,6 +14,7 @@ const { requireRole } = require("../utils/requireRole");
 
 const issuesService = require("../services/issues.service");
 
+
 function parseDueBefore(value) {
   const date = new Date(value);
 
@@ -109,6 +110,7 @@ async function listIssues(req, res, url) {
   const priority = url.searchParams.get("priority");
   const assignedTo = url.searchParams.get("assignedTo");
   const q = url.searchParams.get("q"); 
+  const view =url.searchParams.get("view");
 
   // ✅ Sorting
   const sort = url.searchParams.get("sort") || "createdAt";
@@ -121,6 +123,7 @@ async function listIssues(req, res, url) {
   // ✅ Validation
   if (status) {
     assertOneOf(status, "status", [
+      "backlog",
       "todo",
       "in_progress",
       "done",
@@ -150,6 +153,7 @@ async function listIssues(req, res, url) {
   order,
   page,
   limit,
+  view,
 });
   return sendJson(res, 200, result);
 }
@@ -190,6 +194,7 @@ async function updateIssue(req, res, id) {
 
   if (body.status !== undefined) {
     updates.status = assertOneOf(body.status, "status", [
+      "backlog",
       "todo",
       "in_progress",
       "done",
@@ -238,7 +243,31 @@ async function assignIssue(req, res, id) {
 
   return sendJson(res, 200, { success: true, data: updated });
 }
+async function reorderIssue(req, res) {
+  await requireAuth(req);
+  requireRole(req.user, ["admin", "member"]);
 
+  const body = await readJsonBody(req);
+
+  if (!Array.isArray(body.issues)) {
+    throw new HttpError(
+      400,
+      "issues must be an array",
+      "INVALID_ISSUES_PAYLOAD"
+    );
+  }
+
+  const updated =
+    await issuesService.reorderIssues(
+      body.issues,
+      req.user
+    );
+
+  return sendJson(res, 200, {
+    success: true,
+    data: updated,
+  });
+}
 async function deleteIssue(req, res, id) {
   await requireAuth(req);
   requireRole(req.user, ["admin"]);
@@ -247,6 +276,38 @@ async function deleteIssue(req, res, id) {
   return sendJson(res, 200, { success: true, data: deleted });
 }
 
+async function getIssueKPIsController(
+  req,
+  res
+) {
+  try {
+
+    const data =
+       await issuesService.getIssueKPIs();
+
+    sendJson(
+      res,
+      200,
+      {
+        success: true,
+        data,
+      }
+    );
+
+  } catch (error) {
+
+    sendJson(
+      res,
+      500,
+      {
+        success: false,
+        message:
+          error.message,
+      }
+    );
+
+  }
+}
 module.exports = {
   createIssue,
   createIssueForProject,
@@ -255,5 +316,7 @@ module.exports = {
   getIssueById,
   updateIssue,
   assignIssue,
+  reorderIssue,
   deleteIssue,
+  getIssueKPIsController,
 };

@@ -65,6 +65,33 @@ async function handleIssuesRoutes(req, res, path, url) {
 
     return false;
   }
+// /issues/reorder
+if (path === "/issues/reorder") {
+  if (req.method === "PATCH") {
+    await issuesController.reorderIssue(req, res);
+    return true;
+  }
+
+  return false;
+}
+// /issues/kpis
+if (path === "/issues/kpis") {
+
+
+if (req.method === "GET") {
+
+  await issuesController.getIssueKPIsController(
+    req,
+    res
+  );
+
+  return true;
+}
+
+return false;
+
+
+}
 
   // /issues/:id
   const match = path.match(/^\/issues\/([^/]+)$/);

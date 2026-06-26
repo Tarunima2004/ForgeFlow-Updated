@@ -26,32 +26,90 @@ async function getUserById(req, res, id) {
 }
 
 async function createUser(req, res) {
-  const body = await readJsonBody(req);
 
-  const name = assertRequiredString(body.name, "name");
-  const email = assertRequiredString(body.email, "email");
-  const password = assertRequiredString(body.password, "password");
+  const body =
+    await readJsonBody(req);
+
+  const name =
+    assertRequiredString(
+      body.name,
+      "name"
+    );
+
+  const email =
+    assertRequiredString(
+      body.email,
+      "email"
+    );
+
+  const password =
+    assertRequiredString(
+      body.password,
+      "password"
+    );
+
+  const dept =
+    assertOneOf(
+      body.dept,
+      "dept",
+      [
+        "Engineering",
+        "Fashion",
+        "Finance",
+        "Electronics",
+        "Biotech",
+      ]
+    );
 
   const role =
     body.role === undefined
       ? "member"
-      : assertOneOf(body.role, "role", ["admin", "member"]);
+      : assertOneOf(
+          body.role,
+          "role",
+          [
+            "admin",
+            "member",
+          ]
+        );
 
-  const user = await usersService.createUser({
-    name,
-    email,
-    password,
-    role,
-  });
+  const user =
+    await usersService.createUser({
+      name,
+      email,
+      password,
+      role,
+      dept,
+    });
 
-  return sendJson(res, 201, {
-    success: true,
-    data: user,
-  });
+  return sendJson(
+    res,
+    201,
+    {
+      success: true,
+      data: user,
+    }
+  );
+
 }
+async function getJobRoles(req, res) {
 
+  const data =
+    await usersService.getJobRoles();
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data,
+    }
+  );
+
+}
 module.exports = {
   listUsers,
   getUserById,
   createUser,
+  getJobRoles,
 };

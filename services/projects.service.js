@@ -510,6 +510,42 @@ async function getProjectHealth() {
     delayed,
   };
 }
+async function getUpcomingDeadlines() {
+
+  const result =
+    await pool.query(`
+      SELECT
+        id,
+        title,
+        priority,
+        due_date,
+        status
+      FROM issues
+      WHERE due_date IS NOT NULL
+      AND status != 'done'
+      ORDER BY due_date ASC
+      LIMIT 5
+    `);
+
+  return result.rows;
+}
+async function getProjectTimeline() {
+
+  const result =
+    await pool.query(`
+      SELECT
+        id,
+        action,
+        message,
+        created_at
+      FROM activity
+      WHERE entity_type = 'project'
+      ORDER BY created_at DESC
+      LIMIT 10
+    `);
+
+  return result.rows;
+}
 module.exports = {
   createProject,
   listProjects,
@@ -520,4 +556,6 @@ module.exports = {
   getProjectStats,
   getProjectInsights,
   getProjectHealth,
+  getUpcomingDeadlines,
+  getProjectTimeline,
 };

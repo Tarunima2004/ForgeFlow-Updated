@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect} from "react";
 import { useNavigate } from "react-router-dom";
 import { Navigate } from "react-router-dom";
 import { registerUser } from "../services/auth.service";
 import { useAuth } from "../context/AuthContext";
+import {getJobRoles} from "../services/users.service";
 
 function Register() {
 
@@ -15,15 +16,18 @@ function Register() {
   const [password, setPassword] =
     useState("");
 
-  const [role, setRole] =
-    useState("member");
+
+  const [dept, setDept] =
+  useState("Engineering");
 
     const { token } = useAuth();
   const [error, setError] =
     useState("");
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const [isLoading, setIsLoading] =useState(false);
+    const [jobRoles, setJobRoles] =useState({});
+    const [jobRole, setJobRole] = useState("");
+const [phoneNumber, setPhoneNumber] = useState("");
 
   const navigate = useNavigate();
 
@@ -42,7 +46,9 @@ function Register() {
           name,
           email,
           password,
-          role,
+          dept,
+           jobRole,
+  phoneNumber,
         });
 
       console.log(
@@ -76,6 +82,33 @@ if (token) {
     />
   );
 }
+useEffect(() => {
+
+  async function fetchJobRoles() {
+
+    try {
+
+      const response =
+        await getJobRoles();
+
+      setJobRoles(
+        response.data
+      );
+
+    } catch (error) {
+
+      console.error(
+        error
+      );
+
+    }
+
+  }
+
+  fetchJobRoles();
+
+}, []);
+console.log(jobRoles);
   return (
     <div className="flex min-h-screen items-center justify-center">
 
@@ -117,23 +150,58 @@ if (token) {
           }
           className="w-full border p-2"
         />
-
         <select
-          value={role}
-          onChange={(e) =>
-            setRole(e.target.value)
-          }
-          className="w-full border p-2"
-        >
-          <option value="member">
-            Member
-          </option>
+  value={dept}
+  onChange={(e) =>
+    setDept(e.target.value)
+  }
+  className="w-full border p-2"
+>
+  <option value="Engineering">
+    Engineering
+  </option>
 
-          <option value="admin">
-            Admin
-          </option>
-        </select>
+  <option value="Fashion">
+    Fashion
+  </option>
 
+  <option value="Finance">
+    Finance
+  </option>
+
+  <option value="Electronics">
+    Electronics
+  </option>
+
+  <option value="Biotech">
+    Biotech
+  </option>
+</select>
+<select
+  value={jobRole}
+  onChange={(e) => setJobRole(e.target.value)}
+  className="w-full border p-2"
+>
+  <option value="">Select Job Role</option>
+
+  {(jobRoles[dept] || []).map((role) => (
+    <option
+      key={role}
+      value={role}
+    >
+      {role}
+    </option>
+  ))}
+</select>
+<input
+  type="text"
+  placeholder="Phone Number"
+  value={phoneNumber}
+  onChange={(e) =>
+    setPhoneNumber(e.target.value)
+  }
+  className="w-full border p-2"
+/>
         {
           error && (
             <p className="text-red-500">

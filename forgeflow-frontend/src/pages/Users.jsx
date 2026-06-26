@@ -1,63 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
+import { getUsers } from "../services/users.service";
 
-const initialUsers = [
-  {
-    id: 1,
-    name: "Sarah Chen",
-    email: "s.chen@forgeflow.ai",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuDzSpMFqeQm39ABrNxTIgI8D5tMpO22CRzpX6uYjDHnxRi0SNPNlC9gbAuSYfj1iDtaW5fkINkbsBvS7trpSdojrgEwrq_YBLnCVkMh_RGcn0hiyd6w0fxQAvf4UoNKv7R4weLpP7RwXoOmL1U_4itUjdAsD7lLOR-FH0D4SfyTDx_aE05rhy43B2UL-yUwOcsS6S-lUoWxH53raiwNpijsleD51bclrjkIt8KZfQjI9T6r_YbJsXm7LKGspiUMwpeN5wCBzYWPWXPL",
-    role: "DEVELOPER",
-    roleBadgeClass: "bg-blue-100 text-blue-800",
-    department: "Engineering",
-    projects: [
-      { label: "P1", color: "bg-blue-100 text-blue-600" },
-      { label: "D3", color: "bg-purple-100 text-purple-600" },
-      { label: "+3", color: "bg-slate-100 text-slate-400" },
-    ],
-    issues: 14,
-    status: "Active",
-    statusDot: "bg-green-500",
-    statusText: "text-green-700",
-    lastActive: "2 mins ago",
-  },
-  {
-    id: 2,
-    name: "Marcus Wright",
-    email: "m.wright@forgeflow.ai",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuBkgWziBtkBfbeQftZTdWJiHUvNGXGlAuKarJ0Xo6rt6UrAprks7sYsazqj3UfyBeJuWbFSrQSSWqAltDMWHhroLM5STaRsAY79neo6nMCL4vM5sYd1bfwd-TCpdd1x7aTwmBQlseDiybpvwCvDcqgU0yQApiIU3OgZjZKAljiwr56TNt10wG4h1ptqimmfhASyNk7S2hNUY67rqG2bzJ-vu3KS66o8dQsCVy34W71yQe2PRXkFS7U6jLkY6DkGXdN52ULAaCy5NGrh",
-    role: "PRODUCT",
-    roleBadgeClass: "bg-[#d0e1fb] text-[#54647a]",
-    department: "Product",
-    projects: [
-      { label: "R2", color: "bg-amber-100 text-amber-600" },
-      { label: "+1", color: "bg-slate-100 text-slate-400" },
-    ],
-    issues: 8,
-    status: "Away",
-    statusDot: "bg-amber-500",
-    statusText: "text-amber-700",
-    lastActive: "1 hour ago",
-  },
-  {
-    id: 3,
-    name: "Elena Rodriguez",
-    email: "e.rodriguez@forgeflow.ai",
-    avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuC-PCNbRN4UOwxHnkQ7ncvSwlkYgohdpfBfXsGCw1W9seoUlLZHEMxiZ3azwZ5OylIPYSqwH36RVLtsxxZbon7FikTayVGXsp3D5wrslq9-rlM0rIc-CCYidJOuUQ6c3Z3O7HqSVcpNBwpXiFyvKZZ4DJmQORZLfSNoKxouJSNvBPriouQOxubvXSxEU2wKg0e8P5bG67n7PkidmQRCyVrvUCZkVb7VfT9PFSiyP9H-h_cXjvWgNPP7vjbwVp2sLlRRGvTDtsDBttrV",
-    role: "DESIGN",
-    roleBadgeClass: "bg-orange-100 text-orange-800",
-    department: "Design",
-    projects: [
-      { label: "S1", color: "bg-indigo-100 text-indigo-600" },
-    ],
-    issues: 3,
-    status: "Offline",
-    statusDot: "bg-slate-400",
-    statusText: "text-slate-500",
-    lastActive: "Yesterday",
-  },
-];
 
 const kpiCards = [
   { icon: "group", iconClass: "text-[#2036bd]", label: "Total Users", value: "1,248", badge: "+12%", badgeClass: "text-[#1d34ba] bg-[#dfe0ff]" },
@@ -111,7 +56,29 @@ const drawerUser = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Users() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
+  useEffect(() => {
+
+  async function fetchUsers() {
+
+    try {
+
+      const response =
+        await getUsers();
+
+      setUsers(response.data);
+
+    } catch (error) {
+
+      console.error(error);
+
+    }
+
+  }
+
+  fetchUsers();
+
+}, []);
   const [filterKeyword, setFilterKeyword] = useState("");
   const [filterRole, setFilterRole] = useState("All Roles");
   const [filterStatus, setFilterStatus] = useState("All Status");
@@ -264,7 +231,7 @@ export default function Users() {
                       >
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-3">
-                            <img src={user.avatar} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                            <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
                             <div>
                               <p className="text-[14px] font-bold">{user.name}</p>
                               <p className="text-[12px] text-[#757686]">{user.email}</p>
@@ -272,20 +239,58 @@ export default function Users() {
                           </div>
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`px-2 py-1 rounded text-[11px] font-bold ${user.roleBadgeClass}`}>{user.role}</span>
-                        </td>
-                        <td className="px-4 py-4 text-[13px]">{user.department}</td>
+
+  <span
+    className={`px-3 py-1 rounded-md text-xs font-semibold
+      ${
+        user.role === "admin"
+          ? "bg-red-100 text-red-700"
+          : "bg-blue-100 text-blue-700"
+      }`}
+  >
+    {user.role.toUpperCase()}
+  </span>
+
+</td>
                         <td className="px-4 py-4">
-                          <div className="flex -space-x-2">
-                            {user.projects.map((p, i) => (
-                              <div key={i} className={`w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-[10px] font-bold ${p.color}`}>
-                                {p.label}
-                              </div>
-                            ))}
-                          </div>
-                        </td>
+
+  <span
+    className={`px-3 py-1 rounded-md text-xs font-semibold
+
+      ${
+        user.dept === "Engineering"
+          ? "bg-blue-100 text-blue-700"
+
+      : user.dept === "Finance"
+          ? "bg-green-100 text-green-700"
+
+      : user.dept === "Fashion"
+          ? "bg-pink-100 text-pink-700"
+
+      : user.dept === "Electronics"
+          ? "bg-yellow-100 text-yellow-700"
+
+      : user.dept === "Biotech"
+          ? "bg-purple-100 text-purple-700"
+
+      : "bg-gray-100 text-gray-700"
+      }
+
+    `}
+  >
+    {user.dept}
+  </span>
+
+</td>
                         <td className="px-4 py-4 text-center">
-                          <span className="font-mono text-[12px] font-bold">{String(user.issues).padStart(2, "0")}</span>
+
+  <span className="font-semibold">
+    {user.project_count}
+  </span>
+
+</td>
+                        <td className="px-4 py-4 text-center">
+                          <span className="font-mono text-[12px] font-bold">{String(user.issue_count).padStart(2, "0")}</span>
                         </td>
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-1.5">
@@ -293,7 +298,7 @@ export default function Users() {
                             <span className={`text-[12px] font-medium ${user.statusText}`}>{user.status}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-[13px] text-[#757686]">{user.lastActive}</td>
+                        <td className="px-4 py-4 text-[13px] text-[#757686]">{user.last_active || "-"}</td>
                         <td className="px-4 py-4 text-right">
                           <button
                             className="p-1 hover:bg-[#eceef0] rounded-md transition-colors"

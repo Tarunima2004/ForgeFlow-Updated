@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const pool = require("../utils/db");
 const { HttpError, assertFound, ERROR_CODES } = require("../utils/errors");
+const jobRoles =require("../config/jobRoles");
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -10,17 +11,68 @@ function normalizeRole(role) {
   return role.trim().toLowerCase();
 }
 
+/**
+ * Sanitizes user object by removing sensitive information
+ * @param {Object} user - The user object to sanitize
+ * @returns {Object} - A new user object without the password property
+ */
 function sanitizeUser(user) {
-  const { password, ...safeUser } = user;
-  return safeUser;
+  const { password, ...safeUser } = user; // Destructure user to remove password
+  return safeUser; // Return the sanitized user object
 }
-
+async function getJobRoles() {
+  return jobRoles;
+}
+// ✅ LIST USERS
 // ✅ LIST USERS
 async function listUsers() {
-  const result = await pool.query("SELECT * FROM users");
-  return result.rows.map(sanitizeUser);
-}
 
+  const result = await pool.query(
+    `
+    SELECT
+      u.id,
+      u.name,
+      u.email,
+      u.role,
+      u.dept,
+      u.job_role,
+      u.phone_number,
+
+      COUNT(
+        DISTINCT pm.project_id
+      ) AS project_count,
+
+      COUNT(
+        DISTINCT i.id
+      ) AS issue_count,
+
+      'Offline' AS status,
+
+      NULL AS last_active
+
+    FROM users u
+
+    LEFT JOIN project_members pm
+      ON pm.user_id = u.id
+
+    LEFT JOIN issues i
+      ON i.assigned_to = u.id
+
+    GROUP BY
+      u.id,
+      u.name,
+      u.email,
+      u.role,
+      u.dept,
+      u.job_role,
+      u.phone_number
+
+    ORDER BY u.name;
+    `
+  );
+
+  return result.rows;
+}
 // ✅ GET USER BY ID
 async function getUserById(id) {
   const result = await pool.query(
@@ -55,11 +107,19 @@ async function getUserByEmail(email) {
 
   return result.rows[0] || null;
 }
+function normalizeDept(dept) {
+  return dept.trim();
+}
 
+function normalizeJobRole(jobRole) {
+  return jobRole?.trim() || null;
+}
 // ✅ CREATE USER (MAIN FIX)
-async function createUser({ name, email, password, role = "member" }) {
+async function createUser({ name, email, password, role = "member",dept,  jobRole,phoneNumber}) {
   const normalizedEmail = normalizeEmail(email);
   const normalizedRole = normalizeRole(role);
+  const normalizedDept = normalizeDept(dept);
+  const normalizedJobRole =normalizeJobRole(jobRole);
 
   // Check existing user
   const existing = await pool.query(
@@ -78,8 +138,8 @@ async function createUser({ name, email, password, role = "member" }) {
   const now = new Date().toISOString();
 
   const result = await pool.query(
-    `INSERT INTO users (id, name, email, password, role, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO users (id, name, email, password, role, dept, job_role,phone_number,created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7,$8,$9,$10)
      RETURNING *`,
     [
       crypto.randomUUID(),
@@ -87,6 +147,9 @@ async function createUser({ name, email, password, role = "member" }) {
       normalizedEmail,
       password.trim(),
       normalizedRole,
+      normalizedDept,
+      normalizedJobRole,
+      phoneNumber?.trim() || null,
       now,
       now,
     ]
@@ -101,4 +164,5 @@ module.exports = {
   findUserById,
   getUserByEmail,
   createUser,
+   getJobRoles,
 };

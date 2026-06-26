@@ -32,7 +32,7 @@ function toSafeUser(user) {
   return safeUser;
 }
 
-async function register({ name, email, password, role }) {
+async function register({ name, email, password, role ,dept, jobRole,phoneNumber}) {
   const hashedPassword = hashPassword(password);
 
   const user = await usersService.createUser({
@@ -40,6 +40,9 @@ async function register({ name, email, password, role }) {
     email,
     password: hashedPassword,
     role,
+    dept,
+    jobRole,
+    phoneNumber,
   });
 
   const safeUser = toSafeUser(user);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
-import {getProjects,getProjectStats, getProjectInsights, getProjectHealth} from "../services/projects.service";
+import {getProjects,getProjectStats, getProjectInsights, getProjectHealth,getUpcomingDeadlines,getProjectTimeline} from "../services/projects.service";
 
 // ─── API INTEGRATION LAYER ────────────────────────────────────────────────────
 // Replace these with your actual API calls
@@ -329,7 +329,88 @@ const priorityInfo =
 }
 
 // ─── MAIN PAGE COMPONENT ──────────────────────────────────────────────────────
+function getRelativeTime(dateString) {
 
+  const now = new Date();
+
+  const date =
+    new Date(dateString);
+
+  const diffMs =
+    now - date;
+
+  const diffMinutes =
+    Math.floor(
+      diffMs / 60000
+    );
+
+  const diffHours =
+    Math.floor(
+      diffMinutes / 60
+    );
+
+  const diffDays =
+    Math.floor(
+      diffHours / 24
+    );
+
+  if (diffMinutes < 1) {
+    return "Just now";
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes} minute${
+      diffMinutes > 1 ? "s" : ""
+    } ago`;
+  }
+
+  if (diffHours < 24) {
+    return `${diffHours} hour${
+      diffHours > 1 ? "s" : ""
+    } ago`;
+  }
+
+  if (diffDays === 1) {
+    return "Yesterday";
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays} day${
+      diffDays > 1 ? "s" : ""
+    } ago`;
+  }
+
+  const diffWeeks =
+    Math.floor(
+      diffDays / 7
+    );
+
+  if (diffWeeks < 5) {
+    return `${diffWeeks} week${
+      diffWeeks > 1 ? "s" : ""
+    } ago`;
+  }
+
+  const diffMonths =
+    Math.floor(
+      diffDays / 30
+    );
+
+  if (diffMonths < 12) {
+    return `${diffMonths} month${
+      diffMonths > 1 ? "s" : ""
+    } ago`;
+  }
+
+  const diffYears =
+    Math.floor(
+      diffDays / 365
+    );
+
+  return `${diffYears} year${
+    diffYears > 1 ? "s" : ""
+  } ago`;
+}
 export default function Projects() {
   // ── State ──────────────────────────────────────────────────────────────────
   const [projects, setProjects] = useState([]);
@@ -401,6 +482,166 @@ async () => {
 
   }
 };
+const fetchProjectTimeline = async () => {
+  try {
+
+    const response =
+      await getProjectTimeline();
+
+    const formattedTimeline =
+      response.data.map(
+        (item) => {
+
+          let dotClass =
+            "bg-[#2036bd]";
+
+          if (
+            item.action ===
+            "project_deleted"
+          ) {
+
+            dotClass =
+              "bg-red-500";
+
+          }
+
+          return {
+            id: item.id,
+
+            dotClass,
+
+            title:
+              item.message,
+
+            sub:
+  getRelativeTime(
+    item.created_at
+  ),
+          };
+        }
+      );
+
+    setTimeline(
+      formattedTimeline
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Timeline Error:",
+      error
+    );
+
+  }
+};
+const fetchUpcomingDeadlines =
+async () => {
+
+  try {
+
+    const response =
+      await getUpcomingDeadlines();
+
+    const formattedDeadlines =
+  response.data.map((item) => {
+
+    const dueDate =
+      new Date(item.due_date);
+
+    const today =
+      new Date();
+
+    today.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    dueDate.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    const diffDays =
+      Math.ceil(
+        (dueDate - today) /
+        (1000 * 60 * 60 * 24)
+      );
+
+    let tag;
+    let tagClass;
+    let rowClass;
+
+    if (diffDays < 0) {
+
+      tag = "Overdue";
+
+      tagClass =
+        "bg-[#ba1a1a] text-white";
+
+      rowClass =
+        "bg-[#fff5f5] border-[#ffd6d6]";
+
+    } else if (diffDays === 0) {
+
+      tag = "Today";
+
+      tagClass =
+        "bg-orange-500 text-white";
+
+      rowClass =
+        "bg-orange-50 border-orange-200";
+
+    } else if (diffDays === 1) {
+
+      tag = "Tomorrow";
+
+      tagClass =
+        "bg-amber-500 text-white";
+
+      rowClass =
+        "bg-amber-50 border-amber-200";
+
+    } else {
+
+      tag = "Upcoming";
+
+      tagClass =
+        "bg-blue-600 text-white";
+
+      rowClass = "";
+    }
+
+    return {
+      id: item.id,
+      name: item.title,
+
+      due: new Date(
+        item.due_date
+      ).toLocaleDateString(),
+
+      tag,
+      tagClass,
+      rowClass,
+    };
+  });
+
+setDeadlines(
+  formattedDeadlines
+);
+
+  } catch (error) {
+
+    console.error(
+      "Deadlines Error:",
+      error
+    );
+
+  }
+};
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -408,31 +649,86 @@ async () => {
     try {
       setLoading(true);
 
-      const [p, t, d, insightsResponse] =
-        await Promise.all([
-          API.fetchProjects(),
-          API.fetchTimeline(),
-          API.fetchDeadlines(),
-          getProjectInsights(),
-        ]);
-        console.log("PROJECTS RESPONSE:", p);
+      const [p, insightsResponse] =
+  await Promise.all([
+    API.fetchProjects(),
+    getProjectInsights(),
+  ]);  console.log("PROJECTS RESPONSE:", p);
 
       setProjects(p);
+      const featuredProjectsData =
+  p
+    .slice(0, 3)
+    .map((project) => {
 
-      setFeaturedProjects(
-        MOCK_FEATURED_PROJECTS
-      );
+      let statusClass =
+        "bg-emerald-100 text-emerald-700";
+
+      if (
+        project.status ===
+        "completed"
+      ) {
+
+        statusClass =
+          "bg-blue-100 text-blue-700";
+
+      } else if (
+        project.status ===
+        "archived"
+      ) {
+
+        statusClass =
+          "bg-gray-100 text-gray-700";
+      }
+
+      let progressColorClass =
+        "bg-amber-500";
+
+      if (
+        project.progress >= 80
+      ) {
+
+        progressColorClass =
+          "bg-emerald-500";
+
+      } else if (
+        project.progress >= 50
+      ) {
+
+        progressColorClass =
+          "bg-[#2036bd]";
+      }
+
+      return {
+        id: project.id,
+
+        title:
+          project.name,
+
+        desc:
+          project.description ||
+          "Project managed in ForgeFlow",
+
+        status:
+          project.status,
+
+        statusClass,
+
+        progress:
+          project.progress,
+
+        progressColorClass,
+      };
+    });
+
+setFeaturedProjects(
+  featuredProjectsData
+);
 
       await fetchProjectStats();
       await fetchProjectHealthData();
-
-      setTimeline(t);
-
-      console.log("Deadlines:", d);
-      console.log(Array.isArray(d));
-
-      setDeadlines(d);
-
+      await fetchUpcomingDeadlines();
+      await fetchProjectTimeline();
       setInsights(
         insightsResponse.data
       );
@@ -458,7 +754,6 @@ async () => {
         filterQuery.toLowerCase()
       )
   );
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f7f9fb] flex items-center justify-center">
@@ -492,6 +787,10 @@ const projectHealthDisplay = [
     barClass: "bg-[#ba1a1a]",
   },
 ];
+console.log(
+  "Timeline State:",
+  timeline
+);
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e]">
         <Sidebar />

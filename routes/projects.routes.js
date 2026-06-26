@@ -104,6 +104,33 @@ if (
 
   return true;
 }
+// /projects/deadlines
+if (
+  path === "/projects/deadlines" &&
+  req.method === "GET"
+) {
+
+  await projectsController
+    .getUpcomingDeadlines(
+      req,
+      res
+    );
+
+  return true;
+}
+if (
+  path === "/projects/timeline" &&
+  req.method === "GET"
+) {
+
+  await projectsController
+    .getProjectTimeline(
+      req,
+      res
+    );
+
+  return;
+}
   // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {

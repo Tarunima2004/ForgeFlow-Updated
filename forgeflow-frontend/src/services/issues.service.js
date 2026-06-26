@@ -13,3 +13,13 @@ export const createIssue = async (issueData) => {
 
   return response.data;
 };
+export const getIssueKPIs = async () => {
+
+  const response =
+    await api.get(
+      "/issues/kpis"
+    );
+
+  return response.data;
+
+};
