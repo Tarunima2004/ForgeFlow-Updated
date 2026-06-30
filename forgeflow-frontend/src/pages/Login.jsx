@@ -131,6 +131,23 @@ function Login() {
               : "Login"
           }
         </button>
+        <div className="text-center pt-4">
+
+  <p className="text-sm text-gray-600">
+
+    New User?
+
+    <button
+      type="button"
+      onClick={() => navigate("/register")}
+      className="ml-2 font-semibold text-blue-600 hover:underline"
+    >
+      Register
+    </button>
+
+  </p>
+
+</div>
 
       </form>
 

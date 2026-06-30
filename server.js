@@ -1,3 +1,4 @@
+require("dotenv").config();
 const http = require("http");
 
 const sendJson = require("./utils/sendJson");
@@ -16,6 +17,8 @@ const { seedData } = require("./utils/seedData");
 const { handleDashboardRoutes} = require("./routes/dashboard.routes");
 const { handleActivityRoutes,} = require("./routes/activity.routes");
 const {handleProjectMembersRoutes,} = require("./routes/projectMembers.routes");
+const {handleInvitationRoutes,} = require("./routes/invitations.routes");
+const {handleEmailOtpRoutes,} = require("./routes/emailOtp.routes");
 
 const PORT = process.env.PORT || 3000;
 
@@ -90,6 +93,9 @@ const server = http.createServer(async (req, res) => {
 if (await handleProjectMembersRoutes( req, res, path)) {
   return;
 }
+if (await handleInvitationRoutes( req, res, path)) {
+  return;
+}
 
 if (await handleDocsRoutes(req, res, path)) return;
 
@@ -120,7 +126,9 @@ if (await handleDocsRoutes(req, res, path)) return;
     if (await handleIssuesRoutes(req, res, path, url)) return;
     if (await handleActivityRoutes(req, res, path)) return;
     if (await handleDashboardRoutes(req,res,path))return;
-
+    if (await handleEmailOtpRoutes( req, res,path)) {
+  return;
+}
     return sendJson(res, 404, {
       success: false,
       error: {

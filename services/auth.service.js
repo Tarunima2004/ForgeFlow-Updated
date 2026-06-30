@@ -1,31 +1,8 @@
-const crypto = require("crypto");
 const { HttpError } = require("../utils/errors");
 const usersService = require("../services/users.service");
+const {getVerifiedOtpByEmail, deleteOtpByEmail,} = require("./emailOtp.service");
 const { createAuthToken } = require("../utils/authToken");
-
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(storedPassword, enteredPassword) {
-  const [salt, storedHash] = storedPassword.split(":");
-
-  if (!salt || !storedHash) {
-    throw new HttpError(
-      500,
-      "Stored password format is invalid",
-      "INVALID_STORED_PASSWORD"
-    );
-  }
-
-  const hash = crypto
-    .scryptSync(enteredPassword, salt, 64)
-    .toString("hex");
-
-  return hash === storedHash;
-}
+const {hashPassword,verifyPassword,} =require("../utils/password");
 
 function toSafeUser(user) {
   const { password: _password, ...safeUser } = user;
@@ -33,6 +10,28 @@ function toSafeUser(user) {
 }
 
 async function register({ name, email, password, role ,dept, jobRole,phoneNumber}) {
+  // ==============================
+// Check Email Verification
+// ==============================
+
+const verifiedEmail =
+  await getVerifiedOtpByEmail(
+    email
+  );
+
+if (!verifiedEmail) {
+
+  throw new HttpError(
+
+    403,
+
+    "Please verify your email before registering.",
+
+    "EMAIL_NOT_VERIFIED"
+
+  );
+
+}
   const hashedPassword = hashPassword(password);
 
   const user = await usersService.createUser({
@@ -44,6 +43,13 @@ async function register({ name, email, password, role ,dept, jobRole,phoneNumber
     jobRole,
     phoneNumber,
   });
+  // ==============================
+// Delete Used OTP
+// ==============================
+
+await deleteOtpByEmail(
+  email
+);
 
   const safeUser = toSafeUser(user);
 
