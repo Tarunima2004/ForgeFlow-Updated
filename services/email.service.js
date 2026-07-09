@@ -145,11 +145,110 @@ async function sendOtpEmail({
   });
 
 }
+// ==============================
+// Send Project Assignment Email
+// ==============================
+
+async function sendProjectAssignmentEmail({
+
+  email,
+
+  name,
+
+  projectName,
+
+  permissionRole,
+
+  designation,
+
+}) {
+
+  const roleText =
+    permissionRole === "manager"
+      ? "Manager"
+      : "Member";
+
+  const html = `
+
+  <div
+    style="
+      font-family: Arial;
+      max-width:600px;
+      margin:auto;
+      padding:20px;
+      border:1px solid #ddd;
+      border-radius:8px;
+    "
+  >
+
+    <h2>
+      Welcome to ForgeFlow
+    </h2>
+
+    <p>
+
+      Hello <strong>${name}</strong>,
+
+    </p>
+
+    <p>
+
+      ForgeFlow Admin has welcomed you as a
+      <strong>${roleText}</strong>
+      for the project
+
+      <strong>${projectName}</strong>.
+
+    </p>
+
+    <p>
+
+      <strong>Your Designation :</strong>
+
+      ${designation}
+
+    </p>
+
+    <p>
+
+      Please login to ForgeFlow to view your project.
+
+    </p>
+
+    <br/>
+
+    <p>
+
+      Regards,
+
+      <br/>
+
+      ForgeFlow Team
+
+    </p>
+
+  </div>
+
+  `;
+
+  return sendEmail({
+
+    to: email,
+
+    subject: `Welcome to ${projectName}`,
+
+    html,
+
+  });
+
+}
 
 module.exports = {
 
   sendEmail,
 
   sendOtpEmail,
+
+  sendProjectAssignmentEmail,
 
 };

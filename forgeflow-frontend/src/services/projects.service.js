@@ -30,35 +30,60 @@ export const getProjectInsights =
     return response.data;
   };
 export async function getProjectHealth() {
-const response = await fetch(
-    "http://localhost:3000/projects/health"
-  );
 
-  const result = await response.json();
+const response =
+await api.get(
+"/projects/health"
+);
 
-  return result.data;
+return response.data.data;
+
 }
 export async function getUpcomingDeadlines() {
 
-  const response =
-    await fetch(
-      "http://localhost:3000/projects/deadlines"
-    );
+const response =
+await api.get(
+"/projects/deadlines"
+);
 
-  const result =
-    await response.json();
+return response.data;
 
-  return result;
 }
 export async function getProjectTimeline() {
 
+const response =
+await api.get(
+"/projects/timeline"
+);
+
+return response.data;
+}
+export const updateProject = async (
+  projectId,
+  projectData
+) => {
+
   const response =
-    await fetch(
-      "http://localhost:3000/projects/timeline"
+    await api.patch(
+
+      `/projects/${projectId}`,
+
+      projectData
+
     );
 
-  const result =
-    await response.json();
+  return response.data;
 
-  return result;
-}
+};
+export const archiveProject = async (
+  projectId
+) => {
+
+  const response =
+    await api.patch(
+      `/projects/${projectId}/archive`
+    );
+
+  return response.data;
+
+};

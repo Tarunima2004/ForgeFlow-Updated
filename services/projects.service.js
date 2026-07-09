@@ -3,6 +3,7 @@ const pool = require("../utils/db");
 const { HttpError, assertFound } = require("../utils/errors");
 const { getUserSnapshot } = require("../utils/authUserSnapshot");
 const { logActivity } = require("./activity.service");
+const {sendProjectAssignmentEmail,} = require("./email.service");
 
 function validateName(name) {
   const n = (name || "").trim();
@@ -17,38 +18,383 @@ function validateName(name) {
 
   return n;
 }
+function validateProjectCode(projectCode) {
+  const code = (projectCode || "").trim().toUpperCase();
 
-// ✅ CREATE PROJECT
-async function createProject({ name }, currentUser) {
-  const now = new Date().toISOString();
-  const userId = currentUser.id;
+  if (!code) {
+    throw new HttpError(
+      400,
+      "project_code is required",
+      "VALIDATION_ERROR"
+    );
+  }
 
-  const result = await pool.query(
-    `INSERT INTO projects (id, name, created_by, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING *`,
-    [crypto.randomUUID(), validateName(name), userId, now, now]
-  );
+  if (!/^[A-Z0-9_-]{2,10}$/.test(code)) {
+    throw new HttpError(
+      400,
+      "Invalid project code",
+      "VALIDATION_ERROR"
+    );
+  }
 
-  const project = result.rows[0];
-
-  await logActivity({
-    entityType: "project",
-    entityId: project.id,
-    action: "project_created",
-    message: `Project "${project.name}" created`,
-  });
-
-  return project;
+  return code;
 }
 
+function validateStatus(status = "planning") {
+  const allowed = [
+    "planning",
+    "active",
+    "on_hold",
+    "completed",
+    "cancelled",
+    "archived",
+  ];
+
+  if (!allowed.includes(status)) {
+    throw new HttpError(
+      400,
+      "Invalid status",
+      "VALIDATION_ERROR"
+    );
+  }
+
+  return status;
+}
+
+function validatePriority(priority = "medium") {
+  const allowed = [
+    "low",
+    "medium",
+    "high",
+    "critical",
+  ];
+
+  if (!allowed.includes(priority)) {
+    throw new HttpError(
+      400,
+      "Invalid priority",
+      "VALIDATION_ERROR"
+    );
+  }
+
+  return priority;
+}
+
+function validateVisibility(visibility = "private") {
+  const allowed = [
+    "private",
+    "organization",
+    "public",
+  ];
+
+  if (!allowed.includes(visibility)) {
+    throw new HttpError(
+      400,
+      "Invalid visibility",
+      "VALIDATION_ERROR"
+    );
+  }
+
+  return visibility;
+}
+async function generateProjectId() {
+
+  const result =
+    await pool.query(`
+      SELECT nextval('project_id_seq') AS number
+    `);
+
+  const number =
+    Number(
+      result.rows[0].number
+    );
+
+  return `PRJ-${String(number).padStart(6, "0")}`;
+}
+async function insertProject(client, projectData) {
+  const result = await client.query(
+    `
+    INSERT INTO projects
+    (
+      id,
+      project_id,
+      project_code,
+      project_name,
+      description,
+
+      status,
+      priority,
+
+      start_date,
+      end_date,
+
+      estimated_completion,
+      actual_completion,
+
+      visibility,
+
+      allow_time_tracking,
+      allow_comments,
+      allow_file_uploads,
+
+      completion_percentage,
+
+      created_by,
+      created_at,
+
+      updated_by,
+      updated_at,
+
+      is_archived
+    )
+
+    VALUES
+    (
+      $1,$2,$3,$4,$5,
+      $6,
+      $7,$8,
+      $9,$10,
+      $11,$12,
+      $13,
+      $14,$15,$16,
+      $17,
+      $18,$19,
+      $20,$21
+    )
+
+    RETURNING *
+    `,
+    projectData
+  );
+
+  return result.rows[0];
+}
+async function addProjectMember(
+  client,
+  projectId,
+  userId,
+  permissionRole,
+  projectDesignation,
+  addedBy
+) {
+
+  const result =
+    await client.query(
+      `
+      INSERT INTO project_members
+      (
+        project_id,
+        user_id,
+        permission_role,
+        project_designation,
+        added_by
+      )
+      VALUES
+      (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5
+      )
+      RETURNING *
+      `,
+      [
+        projectId,
+        userId,
+        permissionRole,
+        projectDesignation,
+        addedBy
+      ]
+    );
+
+  return result.rows[0];
+
+}// ✅ CREATE PROJECT
+async function createProject(data, currentUser) {
+
+  const client = await pool.connect();
+  try {
+  await client.query("BEGIN");
+  const now = new Date().toISOString();
+
+  const userId = currentUser.id;
+  const projectId =
+    await generateProjectId();
+
+  const projectName =
+    validateName(
+      data.project_name
+    );
+
+  const projectCode =
+    validateProjectCode(
+      data.project_code
+    );
+  const projectTeam = Array.isArray(data.project_team)
+  ? data.project_team
+  : [];
+for (const member of projectTeam) {
+
+  const userResult = await client.query(
+    `
+    SELECT id
+    FROM users
+    WHERE id = $1
+    `,
+    [member.user_id]
+  );
+  
+
+  if (userResult.rows.length === 0) {
+
+    throw new HttpError(
+      404,
+      `User ${member.user_id} not found`,
+      "PROJECT_MEMBER_NOT_FOUND"
+    );
+
+  }
+
+}  const existingProject =
+    await client.query(
+      `
+      SELECT id
+      FROM projects
+      WHERE project_code = $1
+      `,
+      [projectCode]
+    );
+
+if (
+    existingProject.rows.length
+) {
+
+    throw new HttpError(
+        409,
+        "Project code already exists",
+        "PROJECT_CODE_EXISTS"
+    );
+
+}
+const project = await insertProject(client, [
+  crypto.randomUUID(),
+
+  projectId,
+
+  projectCode,
+
+  projectName,
+
+  data.description || null,
+
+
+  validateStatus(data.status),
+
+  validatePriority(data.priority),
+
+  data.start_date || null,
+
+  data.end_date || null,
+
+  data.estimated_completion || null,
+
+  data.actual_completion || null,
+
+  validateVisibility(data.visibility),
+
+  data.allow_time_tracking ?? true,
+
+  data.allow_comments ?? true,
+
+  data.allow_file_uploads ?? true,
+
+  0,
+
+  userId,
+
+  now,
+
+  userId,
+
+  now,
+
+  false,
+]);
+for (const member of projectTeam) {
+
+  await addProjectMember(
+    client,
+    project.id,
+    member.user_id,
+    member.permission_role,
+    member.project_designation || null,
+    currentUser.id
+  );
+
+}
+  await logActivity({
+
+    entityType: "project",
+
+    entityId: project.id,
+
+    action: "project_created",
+
+    message:
+      `Project "${project.project_name}" created`,
+  });
+  await client.query("COMMIT");
+  for (const member of projectTeam) {
+    const userResult = await pool.query(
+`
+SELECT
+name,
+email
+FROM users
+WHERE id = $1
+`,
+[member.user_id]
+);
+const user =
+  userResult.rows[0];
+
+await sendProjectAssignmentEmail({
+
+    email: user.email,
+
+    name: user.name,
+
+    projectName: project.project_name,
+
+    permissionRole: member.permission_role,
+
+    designation: member.project_designation,
+
+});
+}
+  return project;
+  }
+  catch (error) {
+
+    await client.query("ROLLBACK");
+
+    throw error;
+
+}
+   finally {
+  client.release();
+}
+}
 // ✅ LIST PROJECTS
 async function listProjects() {
   const projectsResult =
-    await pool.query(
-      "SELECT * FROM projects"
-    );
-
+  await pool.query(`
+    SELECT *
+    FROM projects
+    WHERE is_archived = false
+    ORDER BY created_at DESC
+  `);
   const projects =
     projectsResult.rows;
 
@@ -195,7 +541,7 @@ async function getProjectSummaryById(id) {
 
   return {
     projectId: project.id,
-    projectName: project.name,
+    projectName: project.project_name,
     totalIssues: projectIssues.length,
     statusBreakdown,
     priorityBreakdown,
@@ -204,28 +550,173 @@ async function getProjectSummaryById(id) {
 }
 
 // ✅ UPDATE PROJECT
-async function updateProjectById(id, { name }, currentUser) {
-  const result = await pool.query(
-    `UPDATE projects
-     SET name = $1, updated_at = $2
-     WHERE id = $3
-     RETURNING *`,
-    [validateName(name), new Date().toISOString(), id]
-  );
+async function updateProjectById(id, updates, currentUser) {
 
-  const updatedProject = result.rows[0];
-  assertFound(updatedProject, "Project not found");
+  const fields = [];
+  const values = [];
+  let index = 1;
+
+  // Project Name
+  if (updates.project_name !== undefined) {
+    fields.push(`project_name = $${index++}`);
+    values.push(validateName(updates.project_name));
+  }
+
+  // Project Code
+  if (updates.project_code !== undefined) {
+
+    const projectCode =
+      validateProjectCode(updates.project_code);
+    
+    const existingProject =
+      await pool.query(
+        `
+        SELECT id
+        FROM projects
+        WHERE project_code = $1
+        AND id != $2
+        `,
+        [projectCode, id]
+      );
+
+    if (existingProject.rows.length > 0) {
+      throw new HttpError(
+        409,
+        "Project code already exists",
+        "PROJECT_CODE_EXISTS"
+      );
+    }
+
+    fields.push(`project_code = $${index++}`);
+    values.push(projectCode);
+  }
+
+  // Description
+  if (updates.description !== undefined) {
+    fields.push(`description = $${index++}`);
+    values.push(updates.description);
+  }
+
+  // Project Manager
+  if (updates.project_manager !== undefined) {
+
+    if (updates.project_manager !== null) {
+
+      const manager =
+        await pool.query(
+          `
+          SELECT id
+          FROM users
+          WHERE id = $1
+          `,
+          [updates.project_manager]
+        );
+
+      if (manager.rows.length === 0) {
+        throw new HttpError(
+          404,
+          "Project manager not found",
+          "PROJECT_MANAGER_NOT_FOUND"
+        );
+      }
+    }
+
+    fields.push(`project_manager = $${index++}`);
+    values.push(updates.project_manager);
+  }
+
+  // Status
+  if (updates.status !== undefined) {
+    fields.push(`status = $${index++}`);
+    values.push(validateStatus(updates.status));
+  }
+
+  // Priority
+  if (updates.priority !== undefined) {
+    fields.push(`priority = $${index++}`);
+    values.push(validatePriority(updates.priority));
+  }
+
+  // Dates
+  if (updates.start_date !== undefined) {
+    fields.push(`start_date = $${index++}`);
+    values.push(updates.start_date);
+  }
+
+  if (updates.end_date !== undefined) {
+    fields.push(`end_date = $${index++}`);
+    values.push(updates.end_date);
+  }
+
+  if (updates.estimated_completion !== undefined) {
+    fields.push(`estimated_completion = $${index++}`);
+    values.push(updates.estimated_completion);
+  }
+
+  if (updates.actual_completion !== undefined) {
+    fields.push(`actual_completion = $${index++}`);
+    values.push(updates.actual_completion);
+  }
+
+  // Visibility
+  if (updates.visibility !== undefined) {
+    fields.push(`visibility = $${index++}`);
+    values.push(validateVisibility(updates.visibility));
+  }
+
+  // Feature Toggles
+  if (updates.allow_time_tracking !== undefined) {
+    fields.push(`allow_time_tracking = $${index++}`);
+    values.push(updates.allow_time_tracking);
+  }
+
+  if (updates.allow_comments !== undefined) {
+    fields.push(`allow_comments = $${index++}`);
+    values.push(updates.allow_comments);
+  }
+
+  if (updates.allow_file_uploads !== undefined) {
+    fields.push(`allow_file_uploads = $${index++}`);
+    values.push(updates.allow_file_uploads);
+  }
+
+  // Always update audit fields
+  fields.push(`updated_by = $${index++}`);
+  values.push(currentUser.id);
+
+  fields.push(`updated_at = $${index++}`);
+  values.push(new Date().toISOString());
+
+  values.push(id);
+
+  const result =
+    await pool.query(
+      `
+      UPDATE projects
+      SET ${fields.join(", ")}
+      WHERE id = $${index}
+      RETURNING *
+      `,
+      values
+    );
+
+  const updatedProject =
+    result.rows[0];
+
+  assertFound(
+    updatedProject,
+    "Project not found"
+  );
 
   await logActivity({
     entityType: "project",
     entityId: updatedProject.id,
     action: "project_updated",
-    message: `Project renamed to "${updatedProject.name}"`,
+    message: `Project "${updatedProject.project_name}" updated`,
   });
 
   return updatedProject;
 }
-
 // ✅ DELETE PROJECT (DB handles cascade)
 async function deleteProjectById(id) {
   // Count issues before delete (for response)
@@ -248,7 +739,7 @@ async function deleteProjectById(id) {
     entityType: "project",
     entityId: project.id,
     action: "project_deleted",
-    message: `Project "${project.name}" deleted`,
+    message: `Project "${project.project_name}" deleted`,
   });
 
   return {
@@ -269,6 +760,7 @@ async function getProjectStats() {
       SELECT COUNT(*) AS count
       FROM projects
       WHERE status = 'active'
+      AND is_archived = false
     `);
 
   const completedProjectsResult =
@@ -276,13 +768,14 @@ async function getProjectStats() {
       SELECT COUNT(*) AS count
       FROM projects
       WHERE status = 'completed'
+      AND is_archived = false
     `);
 
   const archivedProjectsResult =
     await pool.query(`
       SELECT COUNT(*) AS count
       FROM projects
-      WHERE status = 'archived'
+      WHERE is_archived = true
     `);
 
   return {
@@ -546,6 +1039,52 @@ async function getProjectTimeline() {
 
   return result.rows;
 }
+async function archiveProjectById(
+  id,
+  currentUser
+) {
+
+  const result =
+    await pool.query(
+      `
+      UPDATE projects
+      SET
+        is_archived = true,
+        updated_by = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING *
+      `,
+      [
+        currentUser.id,
+        id,
+      ]
+    );
+
+  const project =
+    result.rows[0];
+
+  assertFound(
+    project,
+    "Project not found"
+  );
+
+  await logActivity({
+
+    entityType: "project",
+
+    entityId: project.id,
+
+    action: "project_archived",
+
+    message:
+      `Project "${project.project_name}" archived`,
+
+  });
+
+  return project;
+
+}
 module.exports = {
   createProject,
   listProjects,
@@ -558,4 +1097,5 @@ module.exports = {
   getProjectHealth,
   getUpcomingDeadlines,
   getProjectTimeline,
+  archiveProjectById,
 };

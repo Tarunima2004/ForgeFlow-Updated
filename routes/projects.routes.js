@@ -131,6 +131,35 @@ if (
 
   return;
 }
+// /projects/:id/archive
+const archiveMatch =
+  path.match(
+    /^\/projects\/([^/]+)\/archive$/
+  );
+
+if (archiveMatch) {
+
+  const projectId =
+    archiveMatch[1];
+
+  if (
+    req.method === "PATCH"
+  ) {
+
+    await projectsController
+      .archiveProject(
+        req,
+        res,
+        projectId
+      );
+
+    return true;
+
+  }
+
+  return false;
+
+}
   // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {

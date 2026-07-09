@@ -211,7 +211,7 @@ const handleSendOtp =
         await getJobRoles();
 
       setJobRoles(
-        response.data
+        response.data.jobRoles
       );
 
     } catch (error) {

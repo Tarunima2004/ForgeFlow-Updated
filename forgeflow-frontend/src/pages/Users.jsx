@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
-import { getUsers } from "../services/users.service";
+import {
+  getUsers,
+  updateUserRole,
+  getUserById,
+} from "../services/users.service";
 
 
 const kpiCards = [
@@ -33,48 +37,84 @@ const activityTimeline = [
   { dotClass: "bg-green-500", text: <><span className="font-bold">System</span> invited 4 new engineers</>, time: "2 hours ago" },
   { dotClass: "bg-amber-500", text: <><span className="font-bold">Marcus W.</span> changed role to Lead</>, time: "5 hours ago" },
 ];
+const drawerPlaceholderData = {
 
-const drawerUser = {
-  name: "Sarah Chen",
-  title: "Senior Software Architect",
-  avatar: "https://lh3.googleusercontent.com/aida-public/AB6AXuCBBoj2imik8c_14A27U8wiB1Qe6KtFiMvfjoO6vS3oluFE_aW4D0x3uQiEsEbN_wiv5bNbIDxPTSbRIu_13-L4JHf06nhFcZ7XDPxqORGuhDTByZh_jl6YsqHsOjpY_GWlrylo0TQFd6hBHjP85yr9BhSSMrD3KlftzkKD-ghEPJpj8lGS8Z85wOmnnO8s7JdWLUZUj3GZntDCfom3qDrMOWXfG21a3GxpZc0N_7ucgUDuFE2Ly72QC0-gZ2hZHvh4Jm514mWV3e6h",
   stats: [
     { label: "Tasks", value: "142" },
     { label: "Projects", value: "12" },
     { label: "Uptime", value: "98%" },
   ],
-  metrics: [
-    { label: "Code Quality Score", value: "9.2", percent: "w-[92%]", barClass: "bg-[#2036bd]" },
-    { label: "Task Completion Rate", value: "88%", percent: "w-[88%]", barClass: "bg-green-600" },
-  ],
-  recentActivity: [
-    { dotClass: "bg-[#2036bd]", text: <>Reviewed PR <span className="font-mono text-[12px] text-[#2036bd]">#FRG-2291</span> in <span className="font-bold">Core Engine</span></>, time: "15 minutes ago" },
-    { dotClass: "bg-slate-400", text: <>Updated documentation for <span className="font-bold">Auth Flow</span></>, time: "2 hours ago" },
-  ],
-};
 
+  metrics: [
+    {
+      label: "Code Quality Score",
+      value: "9.2",
+      percent: "w-[92%]",
+      barClass: "bg-[#2036bd]",
+    },
+    {
+      label: "Task Completion Rate",
+      value: "88%",
+      percent: "w-[88%]",
+      barClass: "bg-green-600",
+    },
+  ],
+
+  recentActivity: [
+    {
+      dotClass: "bg-[#2036bd]",
+      text: (
+        <>
+          Reviewed PR{" "}
+          <span className="font-mono text-[12px] text-[#2036bd]">
+            #FRG-2291
+          </span>{" "}
+          in <span className="font-bold">Core Engine</span>
+        </>
+      ),
+      time: "15 minutes ago",
+    },
+    {
+      dotClass: "bg-slate-400",
+      text: (
+        <>
+          Updated documentation for{" "}
+          <span className="font-bold">Auth Flow</span>
+        </>
+      ),
+      time: "2 hours ago",
+    },
+  ],
+
+};
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Users() {
-  const [users, setUsers] = useState([]);
-  useEffect(() => {
+  const [users, setUsers] =
+  useState([]);
 
-  async function fetchUsers() {
+async function fetchUsers() {
 
-    try {
+  try {
 
-      const response =
-        await getUsers();
+    const response =
+      await getUsers();
 
-      setUsers(response.data);
-
-    } catch (error) {
-
-      console.error(error);
-
-    }
+    setUsers(
+      response.data
+    );
 
   }
+
+  catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+
+useEffect(() => {
 
   fetchUsers();
 
@@ -85,6 +125,7 @@ export default function Users() {
   const [filterDept, setFilterDept] = useState("Department");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const handleReset = () => {
     setFilterKeyword("");
@@ -102,10 +143,82 @@ export default function Users() {
     return matchesKw && matchesRole && matchesStatus && matchesDept;
   });
 
-  const openDrawer = (user) => {
-    setSelectedUser(user);
+  const openDrawer = async (user) => {
+
+  try {
+
+    const response =
+      await getUserById(user.id);
+
+    setSelectedUser(
+      response.data
+    );
+
     setDrawerOpen(true);
-  };
+
+    setOpenMenuId(null);
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+    alert("Failed to load user profile.");
+
+  }
+
+};
+  async function handlePromoteToManager(
+  user
+) {
+
+  const confirmed =
+    window.confirm(
+
+      `Promote ${user.name} to Manager?`
+
+    );
+
+  if (!confirmed) {
+
+    return;
+
+  }
+
+  try {
+
+    await updateUserRole(
+
+      user.id,
+
+      "manager"
+
+    );
+
+    await fetchUsers();
+
+    setOpenMenuId(null);
+
+  }
+
+  catch (error) {
+
+    console.error(
+
+      error
+
+    );
+
+    alert(
+
+      "Failed to update role."
+
+    );
+
+  }
+
+}
 
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] font-sans">
@@ -299,14 +412,107 @@ export default function Users() {
                           </div>
                         </td>
                         <td className="px-4 py-4 text-[13px] text-[#757686]">{user.last_active || "-"}</td>
-                        <td className="px-4 py-4 text-right">
-                          <button
-                            className="p-1 hover:bg-[#eceef0] rounded-md transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                          </button>
-                        </td>
+                        <td className="px-4 py-4 text-right relative">
+
+  <button
+    className="p-1 hover:bg-[#eceef0] rounded-md transition-colors"
+    onClick={(e) => {
+
+      e.stopPropagation();
+
+      setOpenMenuId(
+
+        openMenuId === user.id
+
+          ? null
+
+          : user.id
+
+      );
+
+    }}
+  >
+
+    <span className="material-symbols-outlined text-[20px]">
+
+      more_vert
+
+    </span>
+
+  </button>
+
+  {
+
+    openMenuId === user.id && (
+
+      <div className="absolute right-4 top-10 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+
+       <button
+  className="w-full px-4 py-3 text-left hover:bg-gray-100 text-sm"
+  onClick={(e) => {
+
+    e.stopPropagation();
+
+    openDrawer(user);
+
+  }}
+>
+  View Profile
+</button>
+        <button
+          className="w-full px-4 py-3 text-left hover:bg-gray-100 text-sm"
+        >
+          Edit User
+        </button>
+
+        <hr />
+
+        {
+
+          user.role === "member" && (
+
+           <button
+  className="w-full px-4 py-3 text-left hover:bg-blue-50 text-blue-700 text-sm font-medium"
+
+  onClick={(e) => {
+
+    e.stopPropagation();
+
+    handlePromoteToManager(user);
+
+  }}
+
+>
+
+  Promote to Manager
+
+</button>
+          )
+
+        }
+
+        <hr />
+
+        <button
+          className="w-full px-4 py-3 text-left hover:bg-red-50 text-red-600 text-sm"
+        >
+          Deactivate User
+        </button>
+
+        <button
+          className="w-full px-4 py-3 text-left hover:bg-red-50 text-red-600 text-sm"
+        >
+          Delete User
+        </button>
+
+      </div>
+
+    )
+
+  }
+
+</td>
+
                       </tr>
                     ))
                   )}
@@ -451,25 +657,227 @@ export default function Users() {
           </div>
           {/* Drawer Body */}
           <div className="p-6 space-y-6">
-            {/* Profile Hero */}
-            <div className="flex flex-col items-center text-center gap-3">
-              <div className="relative">
-                <img src={drawerUser.avatar} alt={drawerUser.name} className="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover" />
-                <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></div>
-              </div>
-              <div>
-                <h4 className="text-[18px] font-semibold">{drawerUser.name}</h4>
-                <p className="text-[#2036bd] text-[12px] font-bold tracking-widest uppercase">{drawerUser.title}</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="bg-[#2036bd] text-white px-4 py-1.5 rounded-lg text-[12px] font-medium">Message</button>
-                <button className="border border-[#c5c5d7] px-4 py-1.5 rounded-lg text-[12px] font-medium hover:bg-[#f2f4f6] transition-colors">Edit Role</button>
-              </div>
-            </div>
+            {/* =========================
+    Enterprise Profile Header
+========================= */}
+<div className="bg-white border border-[#e5e7eb] rounded-2xl p-6 shadow-sm">
+
+  <div className="flex flex-col items-center">
+
+    {/* Avatar */}
+    <img
+      src={`https://ui-avatars.com/api/?name=${encodeURIComponent(
+        selectedUser?.name || ""
+      )}&background=EEF2FF&color=1D4ED8&size=128`}
+      alt={selectedUser?.name}
+      className="w-24 h-24 rounded-full border-4 border-white shadow-lg"
+    />
+
+    {/* Name */}
+    <h2 className="mt-5 text-2xl font-semibold text-gray-900">
+      {selectedUser?.name}
+    </h2>
+
+    {/* Job Role */}
+    <p className="mt-1 text-sm text-gray-500">
+      {selectedUser?.job_role || "No Job Role Assigned"}
+    </p>
+
+    {/* Badges */}
+    <div className="flex flex-wrap justify-center gap-2 mt-5">
+
+      <span
+        className={`px-3 py-1 rounded-full text-xs font-semibold
+        ${
+          selectedUser?.role === "admin"
+            ? "bg-red-100 text-red-700"
+
+            : selectedUser?.role === "manager"
+            ? "bg-purple-100 text-purple-700"
+
+            : "bg-blue-100 text-blue-700"
+        }`}
+      >
+        {selectedUser?.role?.toUpperCase()}
+      </span>
+
+      <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">
+
+        {selectedUser?.dept || "No Department"}
+
+      </span>
+
+    </div>
+
+  </div>
+
+</div>
+
+{/* =========================
+    Personal Information
+========================= */}
+
+<div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-sm overflow-hidden">
+
+  <div className="px-6 py-4 border-b border-[#f1f5f9]">
+
+    <h3 className="text-sm font-semibold text-gray-900">
+      Personal Information
+    </h3>
+
+  </div>
+
+  <div className="divide-y divide-[#f1f5f9]">
+
+    {/* Email */}
+
+    <div className="flex justify-between items-start px-6 py-4">
+
+      <div>
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Email
+        </p>
+
+        <p className="mt-1 text-sm font-medium text-gray-900 break-all">
+          {selectedUser?.email || "-"}
+        </p>
+
+      </div>
+
+      <span className="material-symbols-outlined text-gray-400">
+        mail
+      </span>
+
+    </div>
+
+    {/* Role */}
+
+    <div className="flex justify-between items-start px-6 py-4">
+
+      <div>
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Role
+        </p>
+
+        <p className="mt-1 text-sm font-medium capitalize">
+          {selectedUser?.role || "-"}
+        </p>
+
+      </div>
+
+      <span className="material-symbols-outlined text-gray-400">
+        admin_panel_settings
+      </span>
+
+    </div>
+
+    {/* Department */}
+
+    <div className="flex justify-between items-start px-6 py-4">
+
+      <div>
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Department
+        </p>
+
+        <p className="mt-1 text-sm font-medium">
+          {selectedUser?.dept || "-"}
+        </p>
+
+      </div>
+
+      <span className="material-symbols-outlined text-gray-400">
+        apartment
+      </span>
+
+    </div>
+
+    {/* Job Role */}
+
+    <div className="flex justify-between items-start px-6 py-4">
+
+      <div>
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Job Role
+        </p>
+
+        <p className="mt-1 text-sm font-medium">
+          {selectedUser?.job_role || "-"}
+        </p>
+
+      </div>
+
+      <span className="material-symbols-outlined text-gray-400">
+        badge
+      </span>
+
+    </div>
+
+    {/* Phone */}
+
+    <div className="flex justify-between items-start px-6 py-4">
+
+      <div>
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Phone Number
+        </p>
+
+        <p className="mt-1 text-sm font-medium">
+          {selectedUser?.phone_number || "-"}
+        </p>
+
+      </div>
+
+      <span className="material-symbols-outlined text-gray-400">
+        call
+      </span>
+
+    </div>
+
+    {/* Joined */}
+
+    <div className="flex justify-between items-start px-6 py-4">
+
+      <div>
+
+        <p className="text-xs uppercase tracking-wide text-gray-500">
+          Joined
+        </p>
+
+        <p className="mt-1 text-sm font-medium">
+          {selectedUser?.created_at
+            ? new Date(selectedUser.created_at).toLocaleDateString(
+                "en-IN",
+                {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                }
+              )
+            : "-"}
+        </p>
+
+      </div>
+
+      <span className="material-symbols-outlined text-gray-400">
+        calendar_month
+      </span>
+
+    </div>
+
+  </div>
+
+</div>
+
 
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-3">
-              {drawerUser.stats.map((s) => (
+             {drawerPlaceholderData.stats.map((s) => (
                 <div key={s.label} className="bg-[#f7f9fb] p-3 rounded-lg border border-[#c5c5d7] text-center">
                   <p className="text-[#757686] text-[10px] uppercase">{s.label}</p>
                   <p className="font-bold text-[18px]">{s.value}</p>
@@ -481,7 +889,7 @@ export default function Users() {
             <section>
               <h5 className="text-[11px] font-semibold text-[#757686] uppercase tracking-wider mb-3">Performance Metrics</h5>
               <div className="space-y-4">
-                {drawerUser.metrics.map((m) => (
+                 {drawerPlaceholderData.metrics.map((m) => (
                   <div key={m.label}>
                     <div className="flex justify-between text-[13px] mb-1">
                       <span>{m.label}</span>
@@ -499,7 +907,7 @@ export default function Users() {
             <section>
               <h5 className="text-[11px] font-semibold text-[#757686] uppercase tracking-wider mb-3">Recent Activity</h5>
               <div className="space-y-3">
-                {drawerUser.recentActivity.map((a, i) => (
+                {drawerPlaceholderData.recentActivity.map((a, i) => (
                   <div key={i} className="flex gap-3 text-[13px]">
                     <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${a.dotClass}`}></div>
                     <div>
@@ -512,10 +920,70 @@ export default function Users() {
             </section>
 
             {/* Deactivate Button */}
-            <button className="w-full bg-[#ffdad6] text-[#93000a] py-3 rounded-xl font-bold text-[12px] hover:bg-red-100 transition-colors flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-[20px]">person_remove</span>
-              Deactivate User Account
-            </button>
+            {/* =========================
+    Quick Actions
+========================= */}
+
+<div className="bg-white border border-[#e5e7eb] rounded-2xl shadow-sm overflow-hidden">
+
+  <div className="px-6 py-4 border-b border-[#f1f5f9]">
+    <h3 className="text-sm font-semibold text-gray-900">
+      Quick Actions
+    </h3>
+  </div>
+
+  <div className="p-5 space-y-3">
+
+    {/* Edit User */}
+
+    <button
+      className="w-full flex items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3 hover:bg-[#f8fafc] transition"
+    >
+      <span className="material-symbols-outlined text-[#2563eb]">
+        edit
+      </span>
+
+      <span className="font-medium">
+        Edit User
+      </span>
+    </button>
+
+    {/* Promote */}
+
+    {
+      selectedUser?.role === "member" && (
+
+        <button
+          onClick={() => handlePromoteToManager(selectedUser)}
+          className="w-full flex items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3 hover:bg-[#f8fafc] transition"
+        >
+          <span className="material-symbols-outlined text-purple-600">
+            arrow_circle_up
+          </span>
+
+          <span className="font-medium">
+            Promote to Manager
+          </span>
+        </button>
+      )
+    }
+    {/* Deactivate */}
+
+    <button
+      className="w-full flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 hover:bg-red-100 transition"
+    >
+      <span className="material-symbols-outlined text-red-600">
+        person_off
+      </span>
+
+      <span className="font-medium text-red-700">
+        Deactivate User
+      </span>
+    </button>
+
+  </div>
+
+</div>
           </div>
         </div>
       </div>

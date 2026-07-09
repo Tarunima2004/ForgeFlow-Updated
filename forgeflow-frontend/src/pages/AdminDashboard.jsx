@@ -5,12 +5,12 @@ import { useAuth } from "../context/AuthContext"; // adjust path to your AuthCon
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
 import { getDashboardStats } from "../services/dashboard.service";
-import { getProjects } from "../services/projects.service";
-import { createProject } from "../services/projects.service";
+import {getProjects,createProject,updateProject,archiveProject,} from "../services/projects.service";
 import { createIssue } from "../services/issues.service";
-import { getUsers } from "../services/users.service";
+import { getUsers , getJobRoles,} from "../services/users.service";
 import {getRecentActivity} from "../services/activity.service";
 import {getIssuesByStatus,getIssuesByPriority,} from "../services/dashboard.service";
+import { getDepartments } from "../services/config.service";
 const STATS_DATA = [
   {
     id: "total-projects",
@@ -197,18 +197,69 @@ function StatCard({ icon, iconColor, iconBg, label, value, trend, trendIcon, tre
   );
 }
 
-function ProjectCard({ title, status, statusBg, statusText, description, avatars, progress, progressColor, issueCount, updatedAt }) {
+function ProjectCard({ project,projectId, projectCode,onEdit,onArchive,title,status,priority,visibility,description,avatars,progress,progressColor,issueCount,updatedAt,statusBg,statusText,}) {
   return (
     <div className="bg-white border border-[#c5c5d7] rounded-xl p-4 hover:shadow-lg transition-all duration-300">
-      <div className="flex justify-between mb-2">
-        <h4 className="text-[18px] leading-[26px] font-semibold">{title}</h4>
-        <span className={`px-2 py-0.5 rounded ${statusBg} ${statusText} text-[10px] font-bold uppercase tracking-wider`}>
-          {status}
-        </span>
-      </div>
+      <div className="flex justify-between items-start mb-3">
+
+  {/* Left Side */}
+
+  <div>
+
+    <h4 className="text-[18px] leading-[26px] font-semibold">
+      {title}
+    </h4>
+
+    <p className="text-xs text-gray-500">
+      {projectId} • {projectCode}
+    </p>
+
+  </div>
+
+  {/* Right Side */}
+
+  <div className="flex items-center gap-3">
+
+  <button
+    onClick={() => onEdit(project)}
+    className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+  >
+    Edit
+  </button>
+
+  <button
+    onClick={() => onArchive(project)}
+    className="text-sm text-red-600 hover:text-red-800 font-medium"
+  >
+    Archive
+  </button>
+
+  <span
+    className={`px-2 py-0.5 rounded ${statusBg} ${statusText} text-[10px] font-bold uppercase tracking-wider`}
+  >
+    {status}
+  </span>
+
+</div>
+</div>
       <p className="text-[13px] leading-[18px] text-[#454654] mb-4 line-clamp-2">
         {description}
       </p>
+      <div className="flex gap-2 mb-3">
+
+<span className="px-2 py-1 text-xs rounded bg-gray-100">
+
+Priority: {priority}
+
+</span>
+
+<span className="px-2 py-1 text-xs rounded bg-gray-100">
+
+{visibility}
+
+</span>
+
+</div>
       <div className="flex items-center gap-4 mb-4">
         <div className="flex">
           {(avatars || []).map((src, i) => (
@@ -257,10 +308,29 @@ export default function AdminDashboard() {
   const [teamMembers, setTeamMembers] = useState(TEAM_MEMBERS);
   const [aiPrompt, setAiPrompt]   = useState("");
   const [showCreateProjectModal, setShowCreateProjectModal] =useState(false);
-  const [projectName, setProjectName] =useState("");
+  const [projectName, setProjectName] = useState("");
+  const [projectCode, setProjectCode] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [projectTeam, setProjectTeam] = useState([
+    {
+        user_id: "",
+        permission_role: "member",
+        project_designation: ""
+    }
+]);
+  const [projectStatus, setProjectStatus] =useState("planning");
+  const [projectPriority, setProjectPriority] =useState("medium");
+  const [projectDepartment, setProjectDepartment] = useState("");
+  const [projectType, setProjectType] = useState("software");
+  const [projectVisibility, setProjectVisibility] =useState("private");
+  const [startDate, setStartDate] =useState("");
+  const [endDate, setEndDate] =useState("");
+  const [allowTimeTracking, setAllowTimeTracking] =useState(true);
+  const [allowComments, setAllowComments] =useState(true);
+  const [allowFileUploads, setAllowFileUploads] =useState(true);
   const [showCreateIssueModal,setShowCreateIssueModal,] = useState(false);
   const [issueTitle,setIssueTitle,] = useState("");
-  const [selectedProject,setSelectedProject,] = useState("");
+  const [selectedIssueProject, setSelectedIssueProject] =useState("");
   const [issuePriority,setIssuePriority,] = useState("medium");
   const [users, setUsers] =useState([]);
   const [assignedUser, setAssignedUser] =useState("");
@@ -268,6 +338,10 @@ export default function AdminDashboard() {
   const [activities,setActivities] = useState([]);
   const [statusData, setStatusData] =useState([]);
   const [priorityData, setPriorityData] =useState([]);
+  const [projectMode, setProjectMode] =useState("create");
+  const [selectedProject,setSelectedProject] =useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [jobRoles, setJobRoles] = useState({});
   const fetchProjects = async () => {
   try {
   const response = await getProjects();
@@ -275,39 +349,62 @@ export default function AdminDashboard() {
   const projectsData = response.data;
 
   setProjects(
-    projectsData.map((project) => ({
-      id: project.id,
+  projectsData.map((project) => ({
 
-      title: project.name,
+    id: project.id,
 
-      status: "Active",
+    projectId: project.project_id,
 
-      statusBg: "bg-[#3e52d5]",
+    projectCode: project.project_code,
 
-      statusText: "text-[#d7daff]",
+    title: project.project_name,
 
-      description: "Project managed in ForgeFlow",
+    description:
+      project.description || "No description",
 
-      avatars: [],
+    status: project.status,
 
-      progress: project.progress,
+    priority: project.priority,
 
-      progressColor:
-  project.progress < 40
-    ? "bg-red-500"
-    : project.progress <= 70
-    ? "bg-blue-600"
-    : "bg-green-500",
+    visibility: project.visibility,
 
-      issueCount: project.issueCount,
+    statusBg:
+      project.status === "active"
+        ? "bg-green-600"
+        : project.status === "planning"
+        ? "bg-blue-600"
+        : project.status === "completed"
+        ? "bg-green-500"
+        : project.status === "on_hold"
+        ? "bg-yellow-500"
+        : "bg-gray-500",
 
-      completedIssues: project.completedIssues,
+    statusText: "text-white",
 
-      updatedAt: new Date(
-        project.updated_at
-      ).toLocaleDateString(),
-    }))
-  );
+    avatars: [],
+
+    progress:
+      project.progress || 0,
+
+    progressColor:
+      (project.progress || 0) < 40
+        ? "bg-red-500"
+        : (project.progress || 0) <= 70
+        ? "bg-blue-600"
+        : "bg-green-500",
+
+    issueCount:
+      project.issueCount || 0,
+
+    completedIssues:
+      project.completedIssues || 0,
+
+    updatedAt:
+      new Date(project.updated_at)
+        .toLocaleDateString(),
+
+  }))
+);
 } catch (error) {
   console.error("Projects Error:", error);
 }
@@ -325,6 +422,34 @@ const fetchUsers = async () => {
       error
     );
   }
+};
+const loadDepartments = async () => {
+  try {
+    const data = await getDepartments();
+    setDepartments(data);
+  } catch (err) {
+    console.error(err);
+  }
+};
+const loadJobRoles = async () => {
+
+    try {
+
+        const response =
+            await getJobRoles();
+
+        setJobRoles(
+            response.data.jobRoles
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+    }
+
 };
 const fetchDashboardStats = async () => {
     try {
@@ -556,23 +681,256 @@ useEffect(() => {
   fetchActivities();
   fetchIssuesByStatus();
   fetchIssuesByPriority();
+  loadDepartments();
+  loadJobRoles();
 }, []);
 
 const handleCreateProject = async () => {
+
   try {
+
     await createProject({
-      name: projectName,
+
+      project_name: projectName,
+
+      project_code: projectCode,
+
+      description: projectDescription,
+
+       project_team: projectTeam,  
+      department: projectDepartment,
+      status: projectStatus,
+
+      priority: projectPriority,
+
+      start_date:
+        startDate || null,
+
+      end_date:
+        endDate || null,
+
+      visibility:
+        projectVisibility,
+
+      allow_time_tracking:
+        allowTimeTracking,
+
+      allow_comments:
+        allowComments,
+
+      allow_file_uploads:
+        allowFileUploads,
+
     });
 
     await fetchProjects();
+
     await fetchDashboardStats();
 
     setProjectName("");
+    setProjectCode("");
+    setProjectDescription("");
+
+    setProjectTeam([
+    {
+        user_id: "",
+        permission_role: "member",
+        project_designation: ""
+    }
+]);
+    setProjectDepartment("");
+
+    setProjectStatus("planning");
+
+    setProjectPriority("medium");
+
+    setProjectVisibility("private");
+
+    setStartDate("");
+
+    setEndDate("");
+
+    setAllowTimeTracking(true);
+
+    setAllowComments(true);
+
+    setAllowFileUploads(true);
 
     setShowCreateProjectModal(false);
+    
   } catch (error) {
-    console.error("Create Project Error:", error);
+
+    console.error(
+      "Create Project Error:",
+      error
+    );
+
   }
+
+};
+const handleEditProject = (project) => {
+
+  setProjectMode("edit");
+
+  setSelectedProject(project);
+
+  setProjectName(project.title);
+
+  setProjectCode(project.projectCode);
+
+  setProjectDescription(project.description);
+
+  setProjectDepartment(
+    project.department || ""
+);
+  setProjectPriority(project.priority);
+
+  setProjectStatus(project.status);
+
+  setProjectVisibility(project.visibility);
+
+  setStartDate(
+    project.start_date
+      ? project.start_date.substring(0,10)
+      : ""
+  );
+
+  setEndDate(
+    project.end_date
+      ? project.end_date.substring(0,10)
+      : ""
+  );
+
+  setAllowTimeTracking(
+    project.allow_time_tracking
+  );
+
+  setAllowComments(
+    project.allow_comments
+  );
+
+  setAllowFileUploads(
+    project.allow_file_uploads
+  );
+
+  setShowCreateProjectModal(true);
+
+};
+const handleSaveProject = async () => {
+
+  if (projectMode === "create") {
+
+    return handleCreateProject();
+
+  }
+
+  try {
+
+    await updateProject(
+
+      selectedProject.id,
+
+      {
+
+        project_name: projectName,
+
+        project_code: projectCode,
+
+        description: projectDescription,
+
+        department: projectDepartment,
+        status: projectStatus,
+
+        priority: projectPriority,
+
+        start_date:
+          startDate || null,
+
+        end_date:
+          endDate || null,
+
+        visibility:
+          projectVisibility,
+
+        allow_time_tracking:
+          allowTimeTracking,
+
+        allow_comments:
+          allowComments,
+
+        allow_file_uploads:
+          allowFileUploads,
+
+      }
+
+    );
+
+    await fetchProjects();
+
+    await fetchDashboardStats();
+
+    setShowCreateProjectModal(false);
+
+    setProjectMode("create");
+
+    setSelectedProject(null);
+
+  }
+
+  catch (error) {
+
+    console.error(
+
+      "Update Project Error:",
+
+      error
+
+    );
+
+  }
+
+};
+const handleArchiveProject = async (
+  project
+) => {
+
+  const confirmed =
+    window.confirm(
+
+      `Archive "${project.title}"?`
+
+    );
+
+  if (!confirmed) {
+
+    return;
+
+  }
+
+  try {
+
+    await archiveProject(
+      project.id
+    );
+
+    await fetchProjects();
+
+    await fetchDashboardStats();
+
+  }
+
+  catch (error) {
+
+    console.error(
+
+      "Archive Project Error:",
+
+      error
+
+    );
+
+  }
+
 };
 const handleCreateIssue =
   async () => {
@@ -580,7 +938,7 @@ const handleCreateIssue =
 
       await createIssue({
         title: issueTitle,
-        projectId: selectedProject,
+        projectId: selectedIssueProject,
         priority: issuePriority,
         assignedTo:assignedUser || undefined,
         dueDate:dueDate || undefined,
@@ -591,7 +949,7 @@ const handleCreateIssue =
       await fetchIssuesByStatus();
       await fetchIssuesByPriority();
       setIssueTitle("");
-      setSelectedProject("");
+      setSelectedIssueProject("");
       setIssuePriority("medium");
 
       setShowCreateIssueModal(false);
@@ -725,15 +1083,26 @@ const maxPriorityCount = Math.max(
                   <button className="px-4 py-2 bg-[#eceef0] border border-[#c5c5d7] rounded-lg text-[12px] font-medium hover:bg-[#e6e8ea] transition-all cursor-pointer">
                     View All
                   </button>
-                  <button className="px-4 py-2 bg-[#2036bd] text-white border-0 rounded-lg text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all cursor-pointer">
-                    Create Project
-                  </button>
+                  <button
+
+onClick={() =>
+setShowCreateProjectModal(true)
+}
+
+className="px-4 py-2 bg-[#2036bd] text-white border-0 rounded-lg text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+>
+Create Project
+</button>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {projects.map((project) => (
-                  <ProjectCard key={project.id} {...project} />
+                  <ProjectCard key={project.id} 
+                  project={project}
+                  onEdit={handleEditProject}
+                  onArchive={handleArchiveProject}
+                  {...project} />
                 ))}
               </div>
             </section>
@@ -1023,47 +1392,579 @@ const maxPriorityCount = Math.max(
         </div>
       </main>
       {
-  showCreateProjectModal && (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-xl w-[400px]">
+showCreateProjectModal && (
 
-        <h2 className="text-xl font-semibold mb-4">
-          Create Project
-        </h2>
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto">
 
-        <input
-          type="text"
-          placeholder="Project Name"
-          value={projectName}
-          onChange={(e) =>
-            setProjectName(e.target.value)
-          }
-          className="w-full border p-3 rounded-lg mb-4"
-        />
+<div className="bg-white rounded-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto">
 
-        <div className="flex justify-end gap-2">
+<h2 className="text-2xl font-semibold mb-6">
 
-          <button
-            onClick={() =>
-              setShowCreateProjectModal(false)
-            }
-            className="px-4 py-2 border rounded-lg"
-          >
-            Cancel
-          </button>
+{
+projectMode === "create"
 
-          <button
-            onClick={handleCreateProject}
-            className="px-4 py-2 bg-[#2036bd] text-white rounded-lg"
-          >
-            Create
-          </button>
+?
 
-        </div>
+"Create New Project"
 
-      </div>
-    </div>
-  )
+:
+
+"Edit Project"
+
+}
+
+</h2>
+<div className="grid grid-cols-2 gap-4">
+
+{/* Project Name */}
+
+<div className="col-span-2">
+
+<label className="block mb-1 font-medium">
+Project Name
+</label>
+
+<input
+type="text"
+value={projectName}
+onChange={(e)=>setProjectName(e.target.value)}
+className="w-full border rounded-lg p-3"
+/>
+
+</div>
+
+{/* Project Code */}
+
+<div>
+
+<label className="block mb-1 font-medium">
+Project Code
+</label>
+
+<input
+type="text"
+value={projectCode}
+onChange={(e)=>setProjectCode(e.target.value.toUpperCase())}
+className="w-full border rounded-lg p-3"
+/>
+
+</div>
+
+{/* Status */}
+
+<div>
+
+<label className="block mb-1 font-medium">
+Status
+</label>
+
+<select
+value={projectStatus}
+onChange={(e)=>setProjectStatus(e.target.value)}
+className="w-full border rounded-lg p-3"
+>
+
+<option value="planning">Planning</option>
+<option value="active">Active</option>
+<option value="on_hold">On Hold</option>
+<option value="completed">Completed</option>
+<option value="cancelled">Cancelled</option>
+
+</select>
+
+</div>
+
+{/* Priority */}
+
+<div>
+
+<label className="block mb-1 font-medium">
+Priority
+</label>
+
+<select
+value={projectPriority}
+onChange={(e)=>setProjectPriority(e.target.value)}
+className="w-full border rounded-lg p-3"
+>
+
+<option value="low">Low</option>
+<option value="medium">Medium</option>
+<option value="high">High</option>
+<option value="critical">Critical</option>
+
+</select>
+
+</div>
+
+{/* Visibility */}
+
+<div>
+
+<label className="block mb-1 font-medium">
+Visibility
+</label>
+
+<select
+value={projectVisibility}
+onChange={(e)=>setProjectVisibility(e.target.value)}
+className="w-full border rounded-lg p-3"
+>
+
+<option value="private">
+Private
+</option>
+
+<option value="organization">
+Organization
+</option>
+
+<option value="public">
+Public
+</option>
+
+</select>
+
+</div>
+{/* Department */}
+
+<div>
+
+<label className="block mb-1 font-medium">
+Department
+</label>
+
+<select
+  value={projectDepartment}
+  onChange={(e) => {
+    setProjectDepartment(e.target.value);
+  }}
+  className="w-full border rounded-lg p-3"
+>
+
+  <option value="">
+    Select Department
+  </option>
+
+  {departments.map((department) => (
+    <option
+      key={department}
+      value={department}
+    >
+      {department}
+    </option>
+  ))}
+
+</select>
+
+</div>
+{/* Initial Project Team */}
+
+<div className="col-span-2">
+
+<h3 className="font-semibold mb-4">
+Initial Project Team
+</h3>
+
+{projectTeam.map((member, index) => (
+
+<div
+key={index}
+className="grid grid-cols-12 gap-3 mb-4 border rounded-lg p-3"
+>
+
+{/* User */}
+
+<div className="col-span-5">
+
+<label className="block text-sm mb-1">
+User
+</label>
+
+<select
+
+value={member.user_id}
+
+onChange={(e)=>{
+
+const updated=[...projectTeam];
+
+updated[index].user_id=e.target.value;
+
+setProjectTeam(updated);
+
+}}
+
+className="w-full border rounded-lg p-2"
+>
+
+<option value="">
+Select User
+</option>
+
+{users
+.filter(user=>
+
+!projectDepartment ||
+
+user.dept===projectDepartment
+
+)
+
+.map(user=>(
+
+<option
+
+key={user.id}
+
+value={user.id}
+
+>
+
+{user.name}
+
+</option>
+
+))}
+
+</select>
+
+</div>
+
+{/* Permission */}
+
+<div className="col-span-3">
+
+<label className="block text-sm mb-1">
+
+Permission
+
+</label>
+
+<select
+
+value={member.permission_role}
+
+onChange={(e)=>{
+
+const updated=[...projectTeam];
+
+updated[index].permission_role=e.target.value;
+
+updated[index].project_designation="";
+
+setProjectTeam(updated);
+
+}}
+className="w-full border rounded-lg p-2"
+>
+
+<option value="manager">
+
+Manager
+
+</option>
+
+<option value="member">
+
+Member
+
+</option>
+
+</select>
+
+</div>
+
+{/* Designation */}
+
+<div className="col-span-3">
+
+<label className="block text-sm mb-1">
+
+Designation
+
+</label>
+
+{
+member.permission_role === "manager"
+
+?
+
+<input
+
+type="text"
+
+placeholder="Tech Lead"
+
+value={member.project_designation}
+
+onChange={(e)=>{
+
+const updated=[...projectTeam];
+
+updated[index].project_designation=e.target.value;
+
+setProjectTeam(updated);
+
+}}
+
+className="w-full border rounded-lg p-2"
+
+/>
+
+:
+
+<select
+
+value={member.project_designation}
+
+onChange={(e)=>{
+
+const updated=[...projectTeam];
+
+updated[index].project_designation=e.target.value;
+
+setProjectTeam(updated);
+
+}}
+
+className="w-full border rounded-lg p-2"
+
+>
+
+<option value="">
+Select Job Role
+</option>
+
+{
+
+(jobRoles[projectDepartment] || []).map(role=>(
+
+<option
+
+key={role}
+
+value={role}
+
+>
+
+{role}
+
+</option>
+
+))
+
+}
+
+</select>
+
+}
+
+
+</div>
+
+{/* Remove */}
+
+<div className="col-span-1 flex items-end">
+
+<button
+
+type="button"
+
+onClick={()=>{
+
+const updated=
+
+projectTeam.filter(
+
+(_,i)=>i!==index
+
+);
+
+setProjectTeam(updated);
+
+}}
+
+className="text-red-600"
+
+>
+
+✕
+
+</button>
+
+</div>
+
+</div>
+
+))}
+
+<button
+
+type="button"
+
+onClick={()=>{
+
+setProjectTeam([
+
+...projectTeam,
+
+{
+
+user_id:"",
+
+permission_role:"member",
+
+project_designation:""
+
+}
+
+]);
+
+}}
+
+className="mt-2 px-4 py-2 bg-gray-200 rounded"
+
+>
+
++ Add Team Member
+
+</button>
+
+</div>
+{/* Description */}
+
+<div className="col-span-2">
+
+<label className="block mb-1 font-medium">
+Description
+</label>
+
+<textarea
+rows={4}
+value={projectDescription}
+onChange={(e)=>setProjectDescription(e.target.value)}
+className="w-full border rounded-lg p-3"
+/>
+
+</div>
+
+{/* Dates */}
+
+<div>
+
+<label className="block mb-1 font-medium">
+Start Date
+</label>
+
+<input
+type="date"
+value={startDate}
+onChange={(e)=>setStartDate(e.target.value)}
+className="w-full border rounded-lg p-3"
+/>
+
+</div>
+
+<div>
+
+<label className="block mb-1 font-medium">
+End Date
+</label>
+
+<input
+type="date"
+value={endDate}
+onChange={(e)=>setEndDate(e.target.value)}
+className="w-full border rounded-lg p-3"
+/>
+
+</div>
+
+{/* Settings */}
+
+<div className="col-span-2 flex flex-wrap gap-6 mt-2">
+
+<label className="flex items-center gap-2">
+
+<input
+type="checkbox"
+checked={allowTimeTracking}
+onChange={(e)=>setAllowTimeTracking(e.target.checked)}
+/>
+
+Allow Time Tracking
+
+</label>
+
+<label className="flex items-center gap-2">
+
+<input
+type="checkbox"
+checked={allowComments}
+onChange={(e)=>setAllowComments(e.target.checked)}
+/>
+
+Allow Comments
+
+</label>
+
+<label className="flex items-center gap-2">
+
+<input
+type="checkbox"
+checked={allowFileUploads}
+onChange={(e)=>setAllowFileUploads(e.target.checked)}
+/>
+
+Allow File Uploads
+
+</label>
+
+</div>
+
+</div>
+
+<div className="flex justify-end gap-3 mt-8">
+
+<button
+onClick={()=>
+setShowCreateProjectModal(false)
+}
+className="px-5 py-2 border rounded-lg"
+>
+
+Cancel
+
+</button>
+
+<button
+onClick={handleSaveProject}
+className="px-5 py-2 bg-[#2036bd] text-white rounded-lg"
+>
+
+{
+projectMode === "create"
+
+?
+
+"Create Project"
+
+:
+
+"Save Changes"
+
+}
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+)
 }
 {showCreateIssueModal && (
   <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">

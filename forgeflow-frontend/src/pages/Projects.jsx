@@ -189,11 +189,27 @@ function FeaturedCard({ project }) {
         </button>
       </div>
       <h5 className="text-base font-bold mb-2">{project.title}</h5>
-      <p className="text-sm text-[#454654] mb-4 line-clamp-2">{project.desc}</p>
-      <div className="flex mb-4">
-  <span className="text-xs text-[#454654]">
-    No Team Data
+      <p className="text-sm text-[#454654] mb-4 line-clamp-2">{project.description}</p>
+      <div className="flex gap-2 mb-4">
+
+  <span className="px-2 py-1 rounded bg-gray-100 text-xs">
+
+  {project.projectCode}
+
   </span>
+
+  <span className="px-2 py-1 rounded bg-gray-100 text-xs capitalize">
+
+    {project.priority}
+
+  </span>
+
+  <span className="px-2 py-1 rounded bg-gray-100 text-xs capitalize">
+
+    {project.visibility}
+
+  </span>
+
 </div>
       <div className="space-y-1.5">
         <div className="flex justify-between text-[11px] font-semibold tracking-wider">
@@ -273,12 +289,12 @@ const priorityInfo =
     >
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded ${project.iconBgClass} flex items-center justify-center ${project.iconColorClass}`}>
-            <Icon name={project.icon} className="text-base" />
-          </div>
+          <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center text-[#2036bd]">
+  <Icon name="folder" className="text-base" />
+</div>
           <div>
-            <p className="font-bold text-sm">{project.name}</p>
-            <p className="text-[11px] font-semibold text-[#454654] mt-0.5">{project.meta}</p>
+            <p className="font-bold text-sm">{project.project_name}</p>
+            <p className="text-[11px] font-semibold text-[#454654] mt-0.5"> {project.visibility} • {project.project_code}</p>
           </div>
         </div>
       </td>
@@ -700,25 +716,33 @@ setDeadlines(
       }
 
       return {
-        id: project.id,
 
-        title:
-          project.name,
+  id: project.id,
 
-        desc:
-          project.description ||
-          "Project managed in ForgeFlow",
+  projectCode: project.project_code,
 
-        status:
-          project.status,
+  title: project.project_name,
 
-        statusClass,
+  description:
+    project.description ||
+    "No description",
 
-        progress:
-          project.progress,
+  priority:
+    project.priority,
 
-        progressColorClass,
-      };
+  visibility:
+    project.visibility,
+
+  status:
+    project.status,
+
+  statusClass,
+
+  progress:
+    project.progress,
+
+  progressColorClass,
+};
     });
 
 setFeaturedProjects(
@@ -748,7 +772,7 @@ setFeaturedProjects(
   // ── Derived Data ───────────────────────────────────────────────────────────
   const filteredProjects =
   projects.filter((p) =>
-    p.name
+    (p.project_name || "")
       .toLowerCase()
       .includes(
         filterQuery.toLowerCase()

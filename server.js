@@ -19,7 +19,7 @@ const { handleActivityRoutes,} = require("./routes/activity.routes");
 const {handleProjectMembersRoutes,} = require("./routes/projectMembers.routes");
 const {handleInvitationRoutes,} = require("./routes/invitations.routes");
 const {handleEmailOtpRoutes,} = require("./routes/emailOtp.routes");
-
+const {handleConfigRoutes,} = require("./routes/config.routes");
 const PORT = process.env.PORT || 3000;
 
 function sendError(res, err) {
@@ -127,6 +127,9 @@ if (await handleDocsRoutes(req, res, path)) return;
     if (await handleActivityRoutes(req, res, path)) return;
     if (await handleDashboardRoutes(req,res,path))return;
     if (await handleEmailOtpRoutes( req, res,path)) {
+  return;
+}
+if (handleConfigRoutes(req, res)) {
   return;
 }
     return sendJson(res, 404, {

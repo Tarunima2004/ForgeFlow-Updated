@@ -1,4 +1,5 @@
-module.exports = {
+const jobRoles = {
+
   Engineering: [
     "Backend Developer",
     "Frontend Developer",
@@ -35,4 +36,19 @@ module.exports = {
     "Bioinformatics Engineer",
     "Microbiologist",
   ],
+
+};
+
+function getDepartments() {
+    return Object.keys(jobRoles);
+}
+
+function getJobRolesByDepartment(department) {
+    return jobRoles[department] || [];
+}
+
+module.exports = {
+    jobRoles,
+    getDepartments,
+    getJobRolesByDepartment,
 };

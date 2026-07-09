@@ -243,14 +243,11 @@ export default function IssuesManagement() {
 };
 const projectMap =
   Object.fromEntries(
-    projects.map(
-      (project) => [
-        project.id,
-        project.name,
-      ]
-    )
+    projects.map((project) => [
+      project.id,
+      project.project_name,
+    ])
   );
-
   const projectBoards = {};
 
 issues.forEach((issue) => {
@@ -368,7 +365,7 @@ const backlogIssues = issues
 
 projects.forEach((project) => {
   projectMap[project.id] =
-    project.name;
+    project.project_name;
 });
   const backlogProjects = {};
 
@@ -786,9 +783,9 @@ const handleUpdateIssue =
     (project) => (
       <option
         key={project.id}
-        value={project.name}
+        value={project.project_name}
       >
-        {project.name}
+        {project.project_name}
       </option>
     )
   )}
@@ -851,7 +848,7 @@ const handleUpdateIssue =
                       <tr key={issue.id} className="hover:bg-[#f7f9fb] transition-colors cursor-pointer group">
                         <td className="px-4 py-3 font-mono text-[12px] text-[#757686]">{issue.id}</td>
                         <td className="px-4 py-3 text-[14px] font-medium">{issue.title}</td>
-                        <td className="px-4 py-3 text-[13px] text-[#505f76]">{issue.project}</td>
+                        <td className="px-4 py-3 text-[13px] text-[#505f76]"> {projectMap[issue.project_id] || "-"}</td>
                         <td className="px-4 py-3"><PriorityBadge priority={issue.priority} /></td>
                         <td className="px-4 py-3"><StatusBadge status={issue.status} /></td>
                         <td className="px-4 py-3">
@@ -1290,7 +1287,7 @@ const handleUpdateIssue =
               key={project.id}
               value={project.id}
             >
-              {project.name}
+              {project.project_name}
             </option>
           ))}
         </select>

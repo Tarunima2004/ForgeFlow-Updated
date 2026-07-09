@@ -42,6 +42,34 @@ if (path === "/users/job-roles") {
 
   return false;
 }
+// /users/:id/role
+const roleMatch =
+  path.match(
+    /^\/users\/([^/]+)\/role$/
+  );
+
+if (roleMatch) {
+
+  const id =
+    roleMatch[1];
+
+  if (
+    req.method === "PATCH"
+  ) {
+
+    await usersController.updateUserRole(
+      req,
+      res,
+      id
+    );
+
+    return true;
+
+  }
+
+  return false;
+
+}
   // /users/:id
   const userMatch = path.match(/^\/users\/([^/]+)$/);
 

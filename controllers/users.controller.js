@@ -6,6 +6,14 @@ const {
 } = require("../utils/validators");
 
 const usersService = require("../services/users.service");
+const {
+  requireAuth,
+} = require("../utils/requireAuth");
+
+const {
+  requireRole,
+} = require("../utils/requireRole");
+
 
 async function listUsers(req, res) {
   const users = await usersService.listUsers();
@@ -107,9 +115,50 @@ async function getJobRoles(req, res) {
   );
 
 }
+async function updateUserRole(
+  req,
+  res,
+  id
+) {
+
+  await requireAuth(req);
+
+  requireRole(
+    req.user,
+    ["admin"]
+  );
+
+  const body =
+    await readJsonBody(req);
+
+  const updatedUser =
+    await usersService.updateUserRole(
+
+      id,
+
+      body.role,
+
+      req.user
+
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      message:
+        "User role updated successfully",
+      data:
+        updatedUser,
+    }
+  );
+
+}
 module.exports = {
   listUsers,
   getUserById,
   createUser,
   getJobRoles,
+  updateUserRole,
 };
