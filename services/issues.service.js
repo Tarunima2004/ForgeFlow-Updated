@@ -2,12 +2,7 @@ const crypto = require("crypto");
 const pool = require("../utils/db");
 const { assertFound } = require("../utils/errors");
 const { getUserSnapshot } = require("../utils/authUserSnapshot");
-const {
-  assertRequiredString,
-  assertOneOf,
-  assertMinLength,
-  assertValidDate,
-} = require("../utils/validators");
+const {assertRequiredString,assertOneOf,assertMinLength,assertValidDate,validateIssueType,validateLabels,validateIssueDates,} = require("../utils/validators");
 const { logActivity } = require("./activity.service");
 
 function assertAllowedStatus(status) {
@@ -56,7 +51,48 @@ async function ensureProjectExists(projectId) {
 
   assertFound(result.rows[0], "Project not found");
 }
+// ==========================================
+// Ensure Assigned User belongs to Project
+// ==========================================
 
+async function ensureProjectMember(
+  projectId,
+  userId
+) {
+
+  if (!userId) {
+
+    return;
+
+  }
+
+  const result =
+    await pool.query(
+
+      `
+      SELECT id
+      FROM project_members
+      WHERE
+      project_id = $1
+      AND user_id = $2
+      `,
+
+      [
+        projectId,
+        userId,
+      ]
+
+    );
+
+  assertFound(
+
+    result.rows[0],
+
+    "Assigned user is not a member of this project."
+
+  );
+
+}
 // ✅ Get next rank
 async function getNextRankForProject(projectId) {
   const result = await pool.query(
@@ -68,13 +104,106 @@ async function getNextRankForProject(projectId) {
 
   return max ? max + 1 : 1;
 }
+// ==========================================
+// Generate Issue Key
+// ==========================================
 
+async function generateIssueKey(projectId) {
+
+  // Fetch Project Code
+
+  const projectResult =
+    await pool.query(
+
+      `
+      SELECT project_code
+      FROM projects
+      WHERE id = $1
+      `,
+
+      [projectId]
+
+    );
+
+  assertFound(
+
+    projectResult.rows[0],
+
+    "Project not found."
+
+  );
+
+  const projectCode =
+    projectResult.rows[0].project_code;
+
+  // Fetch Last Issue of this Project
+
+  const issueResult =
+    await pool.query(
+
+      `
+      SELECT issue_key
+      FROM issues
+      WHERE project_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1
+      `,
+
+      [projectId]
+
+    );
+
+  // First Issue
+
+  if (issueResult.rows.length === 0) {
+
+    return `${projectCode}-001`;
+
+  }
+
+  const lastIssueKey =
+    issueResult.rows[0].issue_key;
+
+  if (!lastIssueKey) {
+
+    return `${projectCode}-001`;
+
+  }
+
+  const lastNumber =
+    parseInt(
+
+      lastIssueKey.split("-")[1],
+
+      10
+
+    );
+
+  const nextNumber =
+    lastNumber + 1;
+
+  return `${projectCode}-${String(nextNumber).padStart(3, "0")}`;
+
+}
 // ✅ Create issue with transaction
 async function createIssue(
-  { title, projectId = null, labels = [], priority, dueDate, assignedTo },
+  {
+    title,
+    projectId = null,
+    issueType = "Task",
+    description = null,
+    labels = [],
+    priority,
+    startDate,
+    dueDate,
+    assignedTo,
+  },
   currentUser
 ) {
-  console.log("BODY RECEIVED:", { title, projectId });
+  const issueKey =
+  await generateIssueKey(
+    projectId
+  );
 
   const client = await pool.connect();
 
@@ -85,6 +214,14 @@ async function createIssue(
     if (projectId) {
       projectId = projectId.trim();
       await ensureProjectExists(projectId);
+      if (assignedTo) {
+
+  await ensureProjectMember(
+    projectId,
+    assignedTo
+  );
+
+}
     }
 
     const now = new Date().toISOString();
@@ -97,25 +234,44 @@ async function createIssue(
     // ✅ INSERT ISSUE
     const result = await client.query(
       `INSERT INTO issues
-       (id, title, project_id, status, priority, due_date, rank, assigned_to, created_by, updated_by, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-       RETURNING *`,
+(id,issue_key,project_id,issue_type,title,description,status,priority,start_date,due_date,labels,rank,assigned_to,created_by,updated_by,created_at,updated_at)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+RETURNING *`,
       [
-        crypto.randomUUID(),
-        validateTitle(title),
-        projectId,
-        "backlog",
-        validatePriority(priority),
-        validateDueDate(dueDate),
-        rank,
-        assignedTo !== undefined
-          ? validateAssignedTo(assignedTo)
-          : null,
-        userId,
-        userId,
-        now,
-        now,
-      ]
+  crypto.randomUUID(),
+  issueKey,
+  projectId,
+  validateIssueType(
+    issueType
+  ),
+  validateTitle(
+    title
+  ),
+  description,
+  "backlog",
+  validatePriority(
+    priority
+  ),
+  startDate
+    ? new Date(startDate).toISOString()
+    : null,
+  validateDueDate(
+    dueDate
+  ),
+  validateLabels(
+    labels
+  ),
+  rank,
+  assignedTo
+    ? validateAssignedTo(
+        assignedTo
+      )
+    : null,
+  userId,
+  userId,
+  now,
+  now,
+]
     );
 
     const issue = result.rows[0];
@@ -286,7 +442,7 @@ async function getIssueById(id) {
 // ✅ Update issue
 async function updateIssue(
   id,
-  { title, status, labels, priority, dueDate, assignedTo },
+  { title,issueType,description,status,labels,priority,startDate,dueDate,assignedTo, },
   currentUser
 ) {
   const existing = await getIssueById(id);
@@ -298,41 +454,102 @@ async function updateIssue(
       ? (assertAllowedStatus(status), status)
       : existing.status;
 
+  // ==========================================
+// Validate Assignee belongs to Project
+// ==========================================
+
+if (
+
+  assignedTo !== undefined &&
+
+  assignedTo !== null
+
+) {
+
+  await ensureProjectMember(
+
+    existing.project_id,
+
+    assignedTo
+
+  );
+
+}
+
   const updated = await pool.query(
     `UPDATE issues SET
-     title = $1,
-     status = $2,
-     priority = $3,
-     due_date = $4,
-     assigned_to = $5,
-     updated_by = $6,
-     updated_at = $7
-     WHERE id = $8
-     RETURNING *`,
+
+title = $1,
+
+issue_type = $2,
+
+description = $3,
+
+status = $4,
+
+priority = $5,
+
+start_date = $6,
+
+due_date = $7,
+
+labels = $8,
+
+assigned_to = $9,
+
+updated_by = $10,
+
+updated_at = $11
+
+WHERE id = $12
+
+RETURNING *`,
     [
-      title !== undefined
-        ? validateTitle(title)
-        : existing.title,
+    
+  title !== undefined
+    ? validateTitle(title)
+    : existing.title,
 
-      nextStatus,
+  issueType !== undefined
+    ? validateIssueType(issueType)
+    : existing.issue_type,
 
-      priority !== undefined
-        ? validatePriority(priority)
-        : existing.priority || "medium",
+  description !== undefined
+    ? description
+    : existing.description,
 
-      dueDate !== undefined
-        ? validateDueDate(dueDate)
-        : existing.due_date || null,
+  nextStatus,
 
-      assignedTo !== undefined
-        ? assignedTo === null
-          ? null
-          : validateAssignedTo(assignedTo)
-        : existing.assigned_to,
+  priority !== undefined
+    ? validatePriority(priority)
+    : existing.priority,
 
-      currentUser.id,
-      new Date().toISOString(),
-      id,
+  startDate !== undefined
+    ? startDate
+    : existing.start_date,
+
+  dueDate !== undefined
+    ? validateDueDate(dueDate)
+    : existing.due_date,
+
+  labels !== undefined
+    ? validateLabels(labels)
+    : existing.labels,
+
+  assignedTo !== undefined
+    ? assignedTo === null
+      ? null
+      : validateAssignedTo(
+          assignedTo
+        )
+    : existing.assigned_to,
+
+  currentUser.id,
+
+  new Date().toISOString(),
+
+  id,
+
     ]
   );
 

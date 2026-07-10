@@ -3,7 +3,13 @@ const { HttpError, ERROR_CODES } = require("./errors");
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim() !== "";
 }
-
+const ISSUE_TYPES = [
+  "Task",
+  "Story",
+  "Bug",
+  "Epic",
+  "Improvement",
+];
 function assertRequiredString(value, fieldName) {
   if (!isNonEmptyString(value)) {
     throw new HttpError(
@@ -127,7 +133,63 @@ function parseLimit(value, defaultValue = 10, max = 50) {
 
   return Math.min(parsed, max);
 }
+function validateIssueType(value) {
 
+  return assertOneOf(
+    value,
+    "issue_type",
+    ISSUE_TYPES
+  );
+
+}
+function validateLabels(labels) {
+
+  return assertOptionalStringArray(
+    labels,
+    "labels"
+  );
+
+}
+function validateIssueDates(
+  startDate,
+  dueDate
+) {
+
+  const start =
+    assertValidDate(
+      startDate,
+      "start_date"
+    );
+
+  const due =
+    assertValidDate(
+      dueDate,
+      "due_date"
+    );
+
+  if (
+    start &&
+    due &&
+    new Date(start) > new Date(due)
+  ) {
+
+    throw new HttpError(
+      400,
+      "start_date cannot be after due_date",
+      ERROR_CODES.VALIDATION_ERROR
+    );
+
+  }
+
+  return {
+
+    startDate: start,
+
+    dueDate: due,
+
+  };
+
+}
 module.exports = {
   isNonEmptyString,
   assertRequiredString,
@@ -136,6 +198,9 @@ module.exports = {
   assertOneOf,
   assertMinLength,
   assertValidDate,
+  validateIssueType,
+  validateLabels,
+  validateIssueDates,
   parsePage,
   parseLimit,
 };

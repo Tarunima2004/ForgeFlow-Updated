@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext"; // adjust path to your AuthCon
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
 import { getDashboardStats } from "../services/dashboard.service";
-import {getProjects,createProject,updateProject,archiveProject,} from "../services/projects.service";
+import {getProjects,createProject,updateProject,archiveProject, getProjectMembers,} from "../services/projects.service";
 import { createIssue } from "../services/issues.service";
 import { getUsers , getJobRoles,} from "../services/users.service";
 import {getRecentActivity} from "../services/activity.service";
@@ -328,13 +328,19 @@ export default function AdminDashboard() {
   const [allowTimeTracking, setAllowTimeTracking] =useState(true);
   const [allowComments, setAllowComments] =useState(true);
   const [allowFileUploads, setAllowFileUploads] =useState(true);
-  const [showCreateIssueModal,setShowCreateIssueModal,] = useState(false);
-  const [issueTitle,setIssueTitle,] = useState("");
+  const [showCreateIssueModal, setShowCreateIssueModal] =useState(false);
+  const [issueTitle, setIssueTitle] =useState("");
   const [selectedIssueProject, setSelectedIssueProject] =useState("");
-  const [issuePriority,setIssuePriority,] = useState("medium");
-  const [users, setUsers] =useState([]);
+  const [issueType, setIssueType] =useState("Task");
+  const [issueDescription, setIssueDescription] =useState("");
+  const [issuePriority, setIssuePriority] =useState("medium");
+  const [issueStatus, setIssueStatus] =useState("backlog");
   const [assignedUser, setAssignedUser] =useState("");
+  const [startDateIssue, setStartDateIssue] =useState("");
   const [dueDate, setDueDate] =useState("");
+  const [issueLabels, setIssueLabels] =useState("");
+  const [projectMembers, setProjectMembers] =useState([]);
+  const [users, setUsers] =useState([]);
   const [activities,setActivities] = useState([]);
   const [statusData, setStatusData] =useState([]);
   const [priorityData, setPriorityData] =useState([]);
@@ -422,6 +428,35 @@ const fetchUsers = async () => {
       error
     );
   }
+};
+const loadProjectMembers =
+  async (projectId) => {
+
+    if (!projectId) {
+
+      setProjectMembers([]);
+
+      return;
+
+    }
+
+    try {
+
+      const response =
+        await getProjectMembers(projectId);
+
+      setProjectMembers(
+        response.data
+      );
+
+    }
+
+    catch (error) {
+
+      console.error(error);
+
+    }
+
 };
 const loadDepartments = async () => {
   try {
@@ -937,12 +972,31 @@ const handleCreateIssue =
     try {
 
       await createIssue({
-        title: issueTitle,
-        projectId: selectedIssueProject,
-        priority: issuePriority,
-        assignedTo:assignedUser || undefined,
-        dueDate:dueDate || undefined,
-      });
+
+  title: issueTitle,
+
+  projectId: selectedIssueProject,
+
+  issueType,
+
+  description: issueDescription,
+
+  priority: issuePriority,
+
+  status: issueStatus,
+
+  assignedTo: assignedUser || undefined,
+
+  startDate: startDateIssue || undefined,
+
+  dueDate: dueDate || undefined,
+
+  labels: issueLabels
+    .split(",")
+    .map(label => label.trim())
+    .filter(Boolean),
+
+});
       await fetchDashboardStats();
       await fetchProjects();
       await fetchActivities();
@@ -1967,10 +2021,10 @@ projectMode === "create"
 )
 }
 {showCreateIssueModal && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
 
-    <div className="bg-white p-6 rounded-xl w-[450px]">
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto">
 
+<div className="bg-white rounded-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto">
       <h2 className="text-xl font-semibold mb-4">
         Create Issue
       </h2>
@@ -1988,15 +2042,22 @@ projectMode === "create"
       />
 
       <select
-        value={selectedProject}
-        onChange={(e) =>
-          setSelectedProject(
-            e.target.value
-          )
-        }
-        className="w-full border p-2 rounded mb-4"
-      >
+value={selectedIssueProject}
 
+onChange={async (e)=>{
+
+const value =
+e.target.value;
+
+setSelectedIssueProject(value);
+
+await loadProjectMembers(value);
+
+}}
+
+className="w-full border p-2 rounded mb-4"
+>
+        
         <option value="">
           Select Project
         </option>
@@ -2011,6 +2072,119 @@ projectMode === "create"
         ))}
 
       </select>
+      <select
+
+value={issueType}
+
+onChange={(e)=>
+
+setIssueType(
+
+e.target.value
+
+)
+
+}
+
+className="w-full border p-2 rounded mb-4"
+
+>
+
+<option value="Task">
+
+Task
+
+</option>
+
+<option value="Story">
+
+Story
+
+</option>
+
+<option value="Bug">
+
+Bug
+
+</option>
+
+<option value="Epic">
+
+Epic
+
+</option>
+
+<option value="Improvement">
+
+Improvement
+
+</option>
+
+</select>
+<textarea
+
+rows={4}
+
+value={issueDescription}
+
+onChange={(e)=>
+
+setIssueDescription(
+
+e.target.value
+
+)
+
+}
+
+placeholder="Description"
+
+className="w-full border p-2 rounded mb-4"
+
+/>
+<select
+
+value={issueStatus}
+
+onChange={(e)=>
+
+setIssueStatus(
+
+e.target.value
+
+)
+
+}
+
+className="w-full border p-2 rounded mb-4"
+
+>
+
+<option value="backlog">
+
+Backlog
+
+</option>
+
+<option value="todo">
+
+To Do
+
+</option>
+
+<option value="in_progress">
+
+In Progress
+
+</option>
+
+<option value="done">
+
+Done
+
+</option>
+
+</select>
       {/* Priority */}
 
 <select
@@ -2038,6 +2212,25 @@ projectMode === "create"
     Critical Priority
   </option>
 </select>
+<input
+
+type="date"
+
+value={startDateIssue}
+
+onChange={(e)=>
+
+setStartDateIssue(
+
+e.target.value
+
+)
+
+}
+
+className="w-full border p-2 rounded mb-4"
+
+/>
 
 {/* Due Date */}
 
@@ -2067,15 +2260,43 @@ projectMode === "create"
     Select User
   </option>
 
-  {users.map((user) => (
-    <option
-      key={user.id}
-      value={user.id}
-    >
-      {user.name}
-    </option>
-  ))}
+  {projectMembers.map((member)=>(
+
+<option
+
+key={member.user_id}
+
+value={member.user_id}
+
+>
+
+{member.name}
+
+</option>
+
+))}
 </select>
+<input
+
+type="text"
+
+placeholder="backend, api, authentication"
+
+value={issueLabels}
+
+onChange={(e)=>
+
+setIssueLabels(
+
+e.target.value
+
+)
+
+}
+
+className="w-full border p-2 rounded mb-4"
+
+/>
 
       <div className="flex justify-end gap-2">
 

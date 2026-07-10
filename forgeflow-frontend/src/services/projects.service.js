@@ -85,5 +85,14 @@ export const archiveProject = async (
     );
 
   return response.data;
-
 };
+export async function getProjectMembers(projectId) {
+
+  const response =
+    await api.get(
+      `/projects/${projectId}/members`
+    );
+
+  return response.data;
+
+}

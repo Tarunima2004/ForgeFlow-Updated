@@ -6,6 +6,9 @@ const {
   assertOptionalString,
   assertOptionalStringArray,
   assertOneOf,
+  validateIssueType,
+  validateLabels,
+  validateIssueDates,
   parsePage,
   parseLimit,
 } = require("../utils/validators");
@@ -26,79 +29,204 @@ function parseDueBefore(value) {
 }
 
 async function createIssue(req, res) {
+
   await requireAuth(req);
-  requireRole(req.user, ["admin"]);
 
-  const body = await readJsonBody(req);
-
-  const title = assertRequiredString(body.title, "title");
-  const projectId =
-    body.projectId === undefined || body.projectId === null
-      ? null
-      : assertOptionalString(body.projectId, "projectId");
-  const labels = assertOptionalStringArray(body.labels, "labels") || [];
-  const priority =
-    body.priority === undefined
-      ? undefined
-      : assertOneOf(body.priority, "priority", [
-          "low",
-          "medium",
-          "high",
-          "critical",
-        ]);
-  const dueDate = body.dueDate;
-  const assignedTo =
-    body.assignedTo === undefined ? undefined : assertRequiredString(body.assignedTo, "assignedTo");
-
-  const issue = await issuesService.createIssue(
-    {
-      title,
-      projectId,
-      labels,
-      priority,
-      dueDate,
-      assignedTo,
-    },
-    req.user
+  requireRole(
+    req.user,
+    ["admin"]
   );
 
-  return sendJson(res, 201, { success: true, data: issue });
-}
+  const body =
+    await readJsonBody(req);
 
+  const title =
+    assertRequiredString(
+      body.title,
+      "title"
+    );
+
+  const projectId =
+    assertRequiredString(
+      body.projectId,
+      "projectId"
+    );
+
+  const issueType =
+    validateIssueType(
+      body.issueType || "Task"
+    );
+
+  const description =
+    assertOptionalString(
+      body.description,
+      "description"
+    );
+
+  const labels =
+    validateLabels(
+      body.labels
+    ) || [];
+
+  const priority =
+    body.priority === undefined
+
+      ? undefined
+
+      : assertOneOf(
+
+          body.priority,
+
+          "priority",
+
+          [
+
+            "low",
+
+            "medium",
+
+            "high",
+
+            "critical",
+
+          ]
+
+        );
+
+  const {
+
+    startDate,
+
+    dueDate,
+
+  } = validateIssueDates(
+
+      body.startDate,
+
+      body.dueDate
+
+  );
+
+  const assignedTo =
+    body.assignedTo === undefined
+
+      ? undefined
+
+      : assertRequiredString(
+
+          body.assignedTo,
+
+          "assignedTo"
+
+        );
+
+  const issue =
+    await issuesService.createIssue(
+      {
+        title,
+        projectId,
+        issueType,
+        description,
+        labels,
+        priority,
+        startDate,
+        dueDate,
+        assignedTo,
+      },
+      req.user
+    );
+  return sendJson(
+
+    res,
+    201,
+    {
+      success: true,
+      data: issue,
+    }
+  );
+}
 async function createIssueForProject(req, res, projectId) {
   await requireAuth(req);
   requireRole(req.user, ["admin"]);
 
   const body = await readJsonBody(req);
 
-  const title = assertRequiredString(body.title, "title");
-  const labels = assertOptionalStringArray(body.labels, "labels") || [];
-  const priority =
-    body.priority === undefined
-      ? undefined
-      : assertOneOf(body.priority, "priority", [
+const title =
+  assertRequiredString(
+    body.title,
+    "title"
+  );
+
+const issueType =
+  validateIssueType(
+    body.issueType || "Task"
+  );
+
+const description =
+  assertOptionalString(
+    body.description,
+    "description"
+  );
+
+const labels =
+  validateLabels(
+    body.labels
+  ) || [];
+
+const priority =
+  body.priority === undefined
+    ? undefined
+    : assertOneOf(
+        body.priority,
+        "priority",
+        [
           "low",
           "medium",
           "high",
           "critical",
-        ]);
-  const dueDate = body.dueDate;
-  const assignedTo =
-    body.assignedTo === undefined ? undefined : assertRequiredString(body.assignedTo, "assignedTo");
+        ]
+      );
 
-  const issue = await issuesService.createIssue(
+const {
+  startDate,
+  dueDate,
+} = validateIssueDates(
+  body.startDate,
+  body.dueDate
+);
+
+const assignedTo =
+  body.assignedTo === undefined
+    ? undefined
+    : assertRequiredString(
+        body.assignedTo,
+        "assignedTo"
+      );
+
+const issue =
+  await issuesService.createIssue(
     {
       title,
-      projectId,
+      projectId,          // ← comes from the route parameter
+      issueType,
+      description,
       labels,
       priority,
+      startDate,
       dueDate,
       assignedTo,
     },
     req.user
   );
 
-  return sendJson(res, 201, { success: true, data: issue });
+return sendJson(
+  res,
+  201,
+  {
+    success: true,
+    data: issue,
+  }
+);
 }
 
 async function listIssues(req, res, url) {
@@ -202,7 +330,10 @@ async function updateIssue(req, res, id) {
   }
 
   if (body.labels !== undefined) {
-    updates.labels = assertOptionalStringArray(body.labels, "labels");
+    updates.labels =
+  validateLabels(
+    body.labels
+  );
   }
 
   if (body.priority !== undefined) {
@@ -214,11 +345,54 @@ async function updateIssue(req, res, id) {
     ]);
   }
 
-  if (body.dueDate !== undefined) {
-    updates.dueDate = body.dueDate;
-  }
+  if (
+
+  body.startDate !== undefined ||
+
+  body.dueDate !== undefined
+
+) {
+
+  const {
+
+    startDate,
+
+    dueDate,
+
+  } = validateIssueDates(
+
+      body.startDate,
+
+      body.dueDate
+
+  );
+
+  updates.startDate =
+    startDate;
+
+  updates.dueDate =
+    dueDate;
+
+}
   if (body.assignedTo !== undefined) {
   updates.assignedTo = body.assignedTo;
+}
+if (body.issueType !== undefined) {
+
+  updates.issueType =
+    validateIssueType(
+      body.issueType
+    );
+
+}
+if (body.description !== undefined) {
+
+  updates.description =
+    assertOptionalString(
+      body.description,
+      "description"
+    );
+
 }
   const updated = await issuesService.updateIssue(id, updates, req.user);
 
