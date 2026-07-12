@@ -215,12 +215,10 @@ async function createIssue(
       projectId = projectId.trim();
       await ensureProjectExists(projectId);
       if (assignedTo) {
-
   await ensureProjectMember(
     projectId,
     assignedTo
   );
-
 }
     }
 

@@ -548,7 +548,70 @@ async function getProjectSummaryById(id) {
     overdueIssues,
   };
 }
+async function getProjectStatistics(projectId) {
 
+  // Make sure the project exists
+  await getProjectById(projectId);
+
+  const result =
+    await pool.query(
+      `
+      SELECT
+        status
+      FROM issues
+      WHERE project_id = $1
+      `,
+      [projectId]
+    );
+
+  const issues =
+    result.rows;
+
+  let backlog = 0;
+  let todo = 0;
+  let inProgress = 0;
+  let done = 0;
+
+  for (const issue of issues) {
+
+    switch (issue.status) {
+
+      case "backlog":
+        backlog++;
+        break;
+
+      case "todo":
+        todo++;
+        break;
+
+      case "in_progress":
+        inProgress++;
+        break;
+
+      case "done":
+        done++;
+        break;
+
+    }
+
+  }
+
+  return {
+
+    totalIssues:
+      issues.length,
+
+    backlog,
+
+    todo,
+
+    inProgress,
+
+    done,
+
+  };
+
+}
 // ✅ UPDATE PROJECT
 async function updateProjectById(id, updates, currentUser) {
 
@@ -1090,6 +1153,7 @@ module.exports = {
   listProjects,
   getProjectById,
   getProjectSummaryById,
+  getProjectStatistics,
   updateProjectById,
   deleteProjectById,
   getProjectStats,

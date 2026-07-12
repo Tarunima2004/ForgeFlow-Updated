@@ -381,6 +381,29 @@ async function getProjectTimeline(
     }
   );
 }
+async function getProjectStatistics(
+  req,
+  res,
+  projectId
+) {
+
+  await requireAuth(req);
+
+  const statistics =
+    await projectsService.getProjectStatistics(
+      projectId
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: statistics,
+    }
+  );
+
+}
 module.exports = {
   createProject,
   listProjects,
@@ -394,4 +417,5 @@ module.exports = {
   getUpcomingDeadlines,
   getProjectTimeline,
   archiveProject,
+  getProjectStatistics,
 };

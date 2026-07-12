@@ -14,6 +14,7 @@ import Activity from "./pages/Activity";
 import Analytics from "./pages/Analytics";
 import AIPlanner from "./pages/AIPlanner";
 import ProtectedRoute from "./routes/ProtectedRoute";
+import ProjectWorkspace from "./pages/ProjectWorkspace";
 
 function App() {
   return (
@@ -48,7 +49,13 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
 
+         path="/projects/:projectId"
+
+         element={<ProjectWorkspace/>}
+
+        />
         <Route
           path="/issues"
           element={

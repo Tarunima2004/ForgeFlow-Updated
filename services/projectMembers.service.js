@@ -59,37 +59,42 @@ async function addMember(projectId, userId) {
 // List Members Of A Project
 // ==============================
 
-async function listMembers(
-  projectId
-) {
+async function listMembers(projectId) {
 
-  const result =
-    await pool.query(
-      `
-      SELECT
-        u.id,
-        u.name,
-        u.email,
-        u.role,
-        u.dept,
-        u.job_role,
-        u.phone_number,
-        pm.joined_at
-      FROM project_members pm
-      JOIN users u
+  const result = await pool.query(
+    `
+    SELECT
+      u.id AS user_id,
+      u.name,
+      u.email,
+      u.role,
+      u.dept,
+      u.job_role,
+      u.phone_number,
+
+      pm.permission_role,
+      pm.project_designation,
+      pm.joined_at
+
+    FROM project_members pm
+
+    JOIN users u
       ON pm.user_id = u.id
-      WHERE pm.project_id = $1
-      ORDER BY u.name
-      `,
-      [
-        projectId,
-      ]
-    );
+
+    WHERE pm.project_id = $1
+
+    ORDER BY
+      CASE
+        WHEN pm.permission_role = 'manager' THEN 1
+        ELSE 2
+      END,
+      u.name
+    `,
+    [projectId]
+  );
 
   return result.rows;
-}
-
-// ==============================
+}// ==============================
 // Remove Member
 // ==============================
 

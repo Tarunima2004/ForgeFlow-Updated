@@ -96,3 +96,22 @@ export async function getProjectMembers(projectId) {
   return response.data;
 
 }
+export async function getProjectById(projectId) {
+
+  const response =
+    await api.get(
+      `/projects/${projectId}`
+    );
+
+  return response.data.data;
+
+}
+export async function getProjectStatistics(projectId) {
+
+  const response = await api.get(
+    `/projects/${projectId}/statistics`
+  );
+
+  return response.data.data;
+
+}

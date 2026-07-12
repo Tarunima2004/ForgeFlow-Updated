@@ -160,6 +160,30 @@ if (archiveMatch) {
   return false;
 
 }
+if (
+
+  req.method === "GET" &&
+
+  path.match(
+    /^\/projects\/([^/]+)\/statistics$/
+  )
+
+) {
+
+  const projectId =
+    path.split("/")[2];
+
+  return projectsController.getProjectStatistics(
+
+    req,
+
+    res,
+
+    projectId
+
+  );
+
+}
   // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {

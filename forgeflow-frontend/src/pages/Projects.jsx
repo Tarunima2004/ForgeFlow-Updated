@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
+import { useNavigate } from "react-router-dom";
 import {getProjects,getProjectStats, getProjectInsights, getProjectHealth,getUpcomingDeadlines,getProjectTimeline} from "../services/projects.service";
 
 // ─── API INTEGRATION LAYER ────────────────────────────────────────────────────
@@ -229,7 +230,7 @@ function FeaturedCard({ project }) {
 
 // ─── TABLE ROW ────────────────────────────────────────────────────────────────
 
-function ProjectTableRow({ project, isLast }) {
+function ProjectTableRow({ project, isLast,onClick, }) {
   const statusMap = {
   active: {
     text: "In Progress",
@@ -283,6 +284,7 @@ const priorityInfo =
     : "bg-amber-500";
   return (
     <tr
+      onClick={onClick}
       className={`hover:bg-[#f2f4f6] transition-colors duration-150 ${
         !isLast ? "border-b border-[#c5c5d7]" : ""
       }`}
@@ -456,6 +458,7 @@ export default function Projects() {
   const [deadlines, setDeadlines] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterQuery, setFilterQuery] = useState("");
+  const navigate = useNavigate();
   const fetchProjectStats =
   async () => {
 
@@ -954,6 +957,9 @@ console.log(
                         key={row.id}
                         project={row}
                         isLast={idx === filteredProjects.length - 1}
+                        onClick={() =>
+        navigate(`/projects/${row.id}`)
+                        }
                       />
                     ))
                   ) : (
