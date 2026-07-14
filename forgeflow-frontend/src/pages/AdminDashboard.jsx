@@ -356,7 +356,6 @@ export default function AdminDashboard() {
 
   setProjects(
   projectsData.map((project) => ({
-
     id: project.id,
 
     projectId: project.project_id,
@@ -365,8 +364,7 @@ export default function AdminDashboard() {
 
     title: project.project_name,
 
-    description:
-      project.description || "No description",
+    description: project.description || "No description",
 
     status: project.status,
 
@@ -374,42 +372,48 @@ export default function AdminDashboard() {
 
     visibility: project.visibility,
 
-    statusBg:
-      project.status === "active"
-        ? "bg-green-600"
-        : project.status === "planning"
-        ? "bg-blue-600"
-        : project.status === "completed"
-        ? "bg-green-500"
-        : project.status === "on_hold"
-        ? "bg-yellow-500"
-        : "bg-gray-500",
+    department: project.department,
 
-    statusText: "text-white",
+    start_date: project.start_date,
+
+    end_date: project.end_date,
+
+    allow_time_tracking: project.allow_time_tracking,
+
+    allow_comments: project.allow_comments,
+
+    allow_file_uploads: project.allow_file_uploads,
+
+    progress: project.progress || 0,
+
+    progressColor:
+        (project.progress || 0) < 40
+            ? "bg-red-500"
+            : (project.progress || 0) <= 70
+            ? "bg-blue-600"
+            : "bg-green-500",
+
+    issueCount: project.issueCount || 0,
+
+    completedIssues: project.completedIssues || 0,
+
+    updatedAt: new Date(project.updated_at).toLocaleDateString(),
 
     avatars: [],
 
-    progress:
-      project.progress || 0,
+    statusBg:
+        project.status === "active"
+            ? "bg-green-600"
+            : project.status === "planning"
+            ? "bg-blue-600"
+            : project.status === "completed"
+            ? "bg-green-500"
+            : project.status === "on_hold"
+            ? "bg-yellow-500"
+            : "bg-gray-500",
 
-    progressColor:
-      (project.progress || 0) < 40
-        ? "bg-red-500"
-        : (project.progress || 0) <= 70
-        ? "bg-blue-600"
-        : "bg-green-500",
-
-    issueCount:
-      project.issueCount || 0,
-
-    completedIssues:
-      project.completedIssues || 0,
-
-    updatedAt:
-      new Date(project.updated_at)
-        .toLocaleDateString(),
-
-  }))
+    statusText: "text-white"
+}))
 );
 } catch (error) {
   console.error("Projects Error:", error);
@@ -719,7 +723,45 @@ useEffect(() => {
   loadDepartments();
   loadJobRoles();
 }, []);
+const resetProjectForm = () => {
 
+    setProjectMode("create");
+
+    setSelectedProject(null);
+
+    setProjectName("");
+
+    setProjectCode("");
+
+    setProjectDescription("");
+
+    setProjectDepartment("");
+
+    setProjectStatus("planning");
+
+    setProjectPriority("medium");
+
+    setProjectVisibility("private");
+
+    setStartDate("");
+
+    setEndDate("");
+
+    setAllowTimeTracking(true);
+
+    setAllowComments(true);
+
+    setAllowFileUploads(true);
+
+    setProjectTeam([
+        {
+            user_id: "",
+            permission_role: "member",
+            project_designation: ""
+        }
+    ]);
+
+};
 const handleCreateProject = async () => {
 
   try {
@@ -803,11 +845,26 @@ const handleCreateProject = async () => {
   }
 
 };
-const handleEditProject = (project) => {
+const handleEditProject = async(project) => {
 
   setProjectMode("edit");
 
   setSelectedProject(project);
+  const response = await getProjectMembers(project.id);
+
+setProjectTeam(
+
+    response.data.map(member => ({
+
+        user_id: member.user_id,
+
+        permission_role: member.permission_role,
+
+        project_designation: member.project_designation
+
+    }))
+
+);
 
   setProjectName(project.title);
 
@@ -847,7 +904,6 @@ const handleEditProject = (project) => {
   setAllowFileUploads(
     project.allow_file_uploads
   );
-
   setShowCreateProjectModal(true);
 
 };
@@ -1019,6 +1075,7 @@ const handleCreateIssue =
 const handleQuickAction = (action) => {
   switch (action) {
     case "createProject":
+      resetProjectForm();
       setShowCreateProjectModal(true);
       break;
 
@@ -1139,9 +1196,13 @@ const maxPriorityCount = Math.max(
                   </button>
                   <button
 
-onClick={() =>
-setShowCreateProjectModal(true)
-}
+onClick={() => {
+
+    resetProjectForm();
+
+    setShowCreateProjectModal(true);
+
+}}
 
 className="px-4 py-2 bg-[#2036bd] text-white border-0 rounded-lg text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all cursor-pointer"
 >
@@ -1982,9 +2043,13 @@ Allow File Uploads
 <div className="flex justify-end gap-3 mt-8">
 
 <button
-onClick={()=>
-setShowCreateProjectModal(false)
-}
+onClick={() => {
+
+  resetProjectForm();
+
+  setShowCreateProjectModal(false);
+
+}}
 className="px-5 py-2 border rounded-lg"
 >
 
@@ -2024,303 +2089,273 @@ projectMode === "create"
 
 <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto">
 
-<div className="bg-white rounded-xl p-6 w-[700px] max-h-[90vh] overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-4">
-        Create Issue
-      </h2>
+<div className="bg-white rounded-xl p-8 w-[820px] max-h-[90vh] overflow-y-auto shadow-2xl">
+      <h2 className="text-2xl font-semibold mb-6">
+  Create New Issue
+</h2>
+     <div className="mb-4">
 
-      <input
-        type="text"
-        placeholder="Issue Title"
-        value={issueTitle}
-        onChange={(e) =>
-          setIssueTitle(
-            e.target.value
-          )
-        }
-        className="w-full border p-2 rounded mb-4"
-      />
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Issue Title
+  </label>
 
-      <select
-value={selectedIssueProject}
+  <input
+    type="text"
+    placeholder="Enter issue title"
+    value={issueTitle}
+    onChange={(e) => setIssueTitle(e.target.value)}
+    className="w-full border rounded-lg p-3"
+  />
 
-onChange={async (e)=>{
+</div>
+      <div className="mb-4">
 
-const value =
-e.target.value;
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Project
+  </label>
 
-setSelectedIssueProject(value);
+  <select
+    value={selectedIssueProject}
+    onChange={async (e) => {
 
-await loadProjectMembers(value);
+      const value = e.target.value;
 
-}}
+      setSelectedIssueProject(value);
 
-className="w-full border p-2 rounded mb-4"
->
-        
-        <option value="">
-          Select Project
-        </option>
+      await loadProjectMembers(value);
 
-        {projects.map((project) => (
-          <option
-            key={project.id}
-            value={project.id}
-          >
-            {project.title}
-          </option>
-        ))}
+    }}
+    className="w-full border rounded-lg p-3"
+  >
 
-      </select>
-      <select
+    <option value="">
+      Select Project
+    </option>
 
-value={issueType}
+    {projects.map((project) => (
 
-onChange={(e)=>
+      <option
+        key={project.id}
+        value={project.id}
+      >
 
-setIssueType(
+        {project.title}
 
-e.target.value
+      </option>
 
-)
+    ))}
+  </select>
+</div>
+      <div className="mb-4">
 
-}
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Issue Type
+  </label>
 
-className="w-full border p-2 rounded mb-4"
+  <select
+    value={issueType}
+    onChange={(e) => setIssueType(e.target.value)}
+    className="w-full border rounded-lg p-3"
+  >
 
->
+    <option value="Task">Task</option>
 
-<option value="Task">
+    <option value="Story">Story</option>
 
-Task
+    <option value="Bug">Bug</option>
 
-</option>
+    <option value="Epic">Epic</option>
 
-<option value="Story">
+    <option value="Improvement">Improvement</option>
 
-Story
+  </select>
 
-</option>
+</div>
+<div className="mb-4">
 
-<option value="Bug">
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Description
+  </label>
 
-Bug
+  <textarea
+    rows={5}
+    value={issueDescription}
+    onChange={(e) => setIssueDescription(e.target.value)}
+    placeholder="Describe the issue..."
+    className="w-full border rounded-lg p-3"
+  />
 
-</option>
+</div>
 
-<option value="Epic">
+<div className="mb-4">
 
-Epic
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Status
+  </label>
 
-</option>
+  <select
+    value={issueStatus}
+    onChange={(e) => setIssueStatus(e.target.value)}
+    className="w-full border rounded-lg p-3"
+  >
 
-<option value="Improvement">
+    <option value="backlog">Backlog</option>
 
-Improvement
+    <option value="todo">To Do</option>
 
-</option>
+    <option value="in_progress">In Progress</option>
 
-</select>
-<textarea
+    <option value="done">Done</option>
 
-rows={4}
+  </select>
 
-value={issueDescription}
-
-onChange={(e)=>
-
-setIssueDescription(
-
-e.target.value
-
-)
-
-}
-
-placeholder="Description"
-
-className="w-full border p-2 rounded mb-4"
-
-/>
-<select
-
-value={issueStatus}
-
-onChange={(e)=>
-
-setIssueStatus(
-
-e.target.value
-
-)
-
-}
-
-className="w-full border p-2 rounded mb-4"
-
->
-
-<option value="backlog">
-
-Backlog
-
-</option>
-
-<option value="todo">
-
-To Do
-
-</option>
-
-<option value="in_progress">
-
-In Progress
-
-</option>
-
-<option value="done">
-
-Done
-
-</option>
-
-</select>
+</div>
       {/* Priority */}
 
-<select
-  value={issuePriority}
-  onChange={(e) =>
-    setIssuePriority(
-      e.target.value
-    )
-  }
-  className="w-full border p-2 rounded mb-4"
->
-  <option value="low">
-    Low Priority
-  </option>
+<div className="mb-4">
 
-  <option value="medium">
-    Medium Priority
-  </option>
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Priority
+  </label>
 
-  <option value="high">
-    High Priority
-  </option>
+  <select
+    value={issuePriority}
+    onChange={(e) => setIssuePriority(e.target.value)}
+    className="w-full border rounded-lg p-3"
+  >
 
-  <option value="critical">
-    Critical Priority
-  </option>
-</select>
-<input
+    <option value="low">
+      Low Priority
+    </option>
 
-type="date"
+    <option value="medium">
+      Medium Priority
+    </option>
 
-value={startDateIssue}
+    <option value="high">
+      High Priority
+    </option>
 
-onChange={(e)=>
+    <option value="critical">
+      Critical Priority
+    </option>
 
-setStartDateIssue(
+  </select>
 
-e.target.value
+</div>
+<div className="grid grid-cols-2 gap-4 mb-4">
 
-)
+  {/* Start Date */}
 
-}
+  <div>
 
-className="w-full border p-2 rounded mb-4"
+    <label className="block mb-2 text-sm font-semibold text-[#454654]">
+      Start Date
+    </label>
 
-/>
+    <input
+      type="date"
+      value={startDateIssue}
+      onChange={(e) =>
+        setStartDateIssue(e.target.value)
+      }
+      className="w-full border rounded-lg p-3"
+    />
 
-{/* Due Date */}
+  </div>
 
-<input
-  type="date"
-  value={dueDate}
-  onChange={(e) =>
-    setDueDate(
-      e.target.value
-    )
-  }
-  className="w-full border p-2 rounded mb-4"
-/>
+  {/* Due Date */}
 
+  <div>
+
+    <label className="block mb-2 text-sm font-semibold text-[#454654]">
+      Due Date
+    </label>
+
+    <input
+      type="date"
+      value={dueDate}
+      onChange={(e) =>
+        setDueDate(e.target.value)
+      }
+      className="w-full border rounded-lg p-3"
+    />
+
+  </div>
+
+</div>
 {/* Assign User */}
 
-<select
-  value={assignedUser}
-  onChange={(e) =>
-    setAssignedUser(
-      e.target.value
-    )
-  }
-  className="w-full border p-2 rounded mb-4"
->
-  <option value="">
-    Select User
-  </option>
+<div className="mb-4">
 
-  {projectMembers.map((member)=>(
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Assign To
+  </label>
 
-<option
+  <select
+    value={assignedUser}
+    onChange={(e) =>
+      setAssignedUser(e.target.value)
+    }
+    className="w-full border rounded-lg p-3"
+  >
 
-key={member.user_id}
+    <option value="">
+      Select User
+    </option>
 
-value={member.user_id}
+    {projectMembers.map((member) => (
 
->
+      <option
+        key={member.user_id}
+        value={member.user_id}
+      >
 
-{member.name}
+        {member.name}
 
-</option>
+      </option>
 
-))}
-</select>
-<input
+    ))}
 
-type="text"
+  </select>
 
-placeholder="backend, api, authentication"
+</div>
+<div className="mb-4">
 
-value={issueLabels}
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Labels
+  </label>
 
-onChange={(e)=>
+  <input
+    type="text"
+    placeholder="Example: backend, api, authentication"
+    value={issueLabels}
+    onChange={(e) =>
+      setIssueLabels(e.target.value)
+    }
+    className="w-full border rounded-lg p-3"
+  />
 
-setIssueLabels(
+</div>
+      <div className="flex justify-end gap-3 mt-8">
 
-e.target.value
+  <button
+    onClick={() =>
+      setShowCreateIssueModal(false)
+    }
+    className="px-5 py-2 border rounded-lg"
+  >
+    Cancel
+  </button>
 
-)
+  <button
+    onClick={handleCreateIssue}
+    className="px-5 py-2 bg-[#2036bd] text-white rounded-lg hover:brightness-110 transition"
+  >
+    Create Issue
+  </button>
 
-}
-
-className="w-full border p-2 rounded mb-4"
-
-/>
-
-      <div className="flex justify-end gap-2">
-
-        <button
-          onClick={() =>
-            setShowCreateIssueModal(
-              false
-            )
-          }
-          className="px-4 py-2 border rounded"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={
-            handleCreateIssue
-          }
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          Create
-        </button>
-
-      </div>
+</div>
 
     </div>
 

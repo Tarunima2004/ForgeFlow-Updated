@@ -21,6 +21,7 @@ function Login() {
   const {
   login,
   token,
+    user,
 } = useAuth();
 
   const navigate = useNavigate();
@@ -40,21 +41,21 @@ function Login() {
           email,
           password,
         });
-
-      console.log(
-        "LOGIN SUCCESS"
-      );
-
       login(
         data.data.user,
         data.data.token
       );
 
-      console.log(
-        "USER SAVED"
-      );
 
-      navigate("/dashboard");
+      if (data.data.user.role === "admin") {
+
+  navigate("/dashboard");
+
+} else {
+
+  navigate("/user-dashboard");
+
+}
 
     } catch (error) {
 
@@ -72,10 +73,19 @@ function Login() {
     }
   };
   if (token) {
+
   return (
+
     <Navigate
-      to="/dashboard"
+
+      to={
+        user?.role === "admin"
+          ? "/dashboard"
+          : "/user-dashboard"
+      }
+
       replace
+
     />
   );
 }
@@ -148,9 +158,7 @@ function Login() {
   </p>
 
 </div>
-
       </form>
-
     </div>
   );
 }

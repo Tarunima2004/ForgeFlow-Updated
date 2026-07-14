@@ -15,6 +15,9 @@ import Analytics from "./pages/Analytics";
 import AIPlanner from "./pages/AIPlanner";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import ProjectWorkspace from "./pages/ProjectWorkspace";
+import UserDashboard from "./pages/UserDashboard";
+import ProjectWorkspaceManager from "./pages/ProjectWorkspaceManager";
+import ProjectWorkspaceMember from "./pages/ProjectWorkspaceMember";
 
 function App() {
   return (
@@ -40,7 +43,30 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+      <Route
+  path="/user-dashboard"
+  element={
+    <ProtectedRoute>
+      <UserDashboard />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/manager-workspace"
+  element={
+    <ProtectedRoute>
+      <ProjectWorkspaceManager />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/member-workspace"
+  element={
+    <ProtectedRoute>
+      <ProjectWorkspaceMember />
+    </ProtectedRoute>
+  }
+/>
         <Route
           path="/projects"
           element={
