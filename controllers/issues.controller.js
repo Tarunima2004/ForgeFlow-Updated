@@ -482,7 +482,30 @@ async function getIssueKPIsController(
 
   }
 }
-module.exports = {
+async function getDashboardStats(req, res) {
+
+  const user = await requireAuth(req);
+
+  requireRole(user, [
+    "admin",
+    "member",
+  ]);
+
+  const stats =
+    await issuesService.getMyDashboardStats(
+      user.id
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: stats,
+    }
+  );
+
+}module.exports = {
   createIssue,
   createIssueForProject,
   listIssues,
@@ -493,4 +516,5 @@ module.exports = {
   reorderIssue,
   deleteIssue,
   getIssueKPIsController,
+  getDashboardStats,
 };

@@ -258,7 +258,7 @@ async function updateUserRole(
 
     message:
       `${currentUser.name} changed ${updatedUser.name}'s role to ${normalizedRole}`,
-
+    userId: currentUser.id,
   });
 
   return sanitizeUser(

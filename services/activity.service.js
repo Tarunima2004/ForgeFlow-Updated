@@ -2,15 +2,17 @@ const pool = require("../utils/db");
 
 // ✅ CREATE ACTIVITY LOG
 async function logActivity(
-  {
+{
     entityType,
     entityId,
     action,
     message,
     metadata,
-  },
-  client = pool
-) {
+    userId,
+},
+client = pool
+)
+ {
   const result = await client.query(
     `
     INSERT INTO activity
@@ -19,9 +21,10 @@ async function logActivity(
       entity_id,
       action,
       message,
+      user_id,
       metadata
     )
-    VALUES ($1,$2,$3,$4,$5)
+    VALUES ($1,$2,$3,$4,$5,$6)
     RETURNING *
     `,
     [
@@ -29,6 +32,7 @@ async function logActivity(
       entityId,
       action,
       message || null,
+      userId || null,
       metadata
         ? JSON.stringify(metadata)
         : null,
@@ -85,8 +89,51 @@ async function listRecentActivity(
     })
   );
 }
+async function getMyActivity(userId) {
+  const result = await pool.query(
+    `
+    SELECT
+        a.id,
+        a.entity_type,
+        a.entity_id,
+        a.action,
+        a.message,
+        a.metadata,
+        a.created_at,
+
+        p.project_name,
+        p.project_code,
+
+        u.id AS performed_by,
+        u.name AS performed_by_name,
+        u.email AS performed_by_email
+
+    FROM activity a
+
+    INNER JOIN projects p
+        ON a.entity_type = 'project'
+       AND a.entity_id = p.id
+
+    INNER JOIN project_members pm
+        ON pm.project_id = p.id
+
+    LEFT JOIN users u
+        ON u.id = a.user_id
+
+    WHERE pm.user_id = $1
+
+    ORDER BY a.created_at DESC
+
+    LIMIT 20
+    `,
+    [userId]
+  );
+
+  return result.rows;
+}
 module.exports = {
   logActivity,
   listActivityByEntity,
   listRecentActivity,
+  getMyActivity,
 };

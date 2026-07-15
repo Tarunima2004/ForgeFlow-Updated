@@ -8,7 +8,19 @@ async function handleActivityRoutes(
   res,
   path
 ) {
+if (
+    req.method === "GET" &&
+    path === "/activity/my"
+) {
 
+    await activityController.getMyActivity(
+        req,
+        res
+    );
+
+    return;
+
+}
   if (
     path === "/activity"
   ) {

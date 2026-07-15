@@ -115,3 +115,12 @@ export async function getProjectStatistics(projectId) {
   return response.data.data;
 
 }
+export async function getMyProjects() {
+
+  const response = await api.get(
+    "/projects/my"
+  );
+
+  return response.data.data;
+
+}

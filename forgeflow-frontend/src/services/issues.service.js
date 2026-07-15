@@ -23,3 +23,12 @@ export const getIssueKPIs = async () => {
   return response.data;
 
 };
+export const getDashboardStats = async () => {
+
+  const response = await api.get(
+    "/issues/dashboard-stats"
+  );
+
+  return response.data.data;
+
+};

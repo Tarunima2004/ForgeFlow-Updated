@@ -10,3 +10,12 @@ export const getRecentActivity =
 
     return response.data;
   };
+  export const getMyActivity = async () => {
+
+    const response = await api.get(
+        "/activity/my"
+    );
+
+    return response.data.data;
+
+};

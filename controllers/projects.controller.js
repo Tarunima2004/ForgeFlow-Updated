@@ -94,6 +94,30 @@ async function listProjects(req, res) {
     data: projects,
   });
 }
+async function listUserProjects(req, res) {
+
+  await requireAuth(req);
+
+  requireRole(
+    req.user,
+    ["admin", "member"]
+  );
+
+  const projects =
+    await projectsService.listUserProjects(
+      req.user.id
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: projects,
+    }
+  );
+
+}
 
 async function getProject(req, res, id) {
   await requireAuth(req);
@@ -407,6 +431,7 @@ async function getProjectStatistics(
 module.exports = {
   createProject,
   listProjects,
+  listUserProjects,
   getProject,
   getProjectSummary,
   patchProject,

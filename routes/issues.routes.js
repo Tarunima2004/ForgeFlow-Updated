@@ -92,7 +92,19 @@ return false;
 
 
 }
+if (
+    req.method === "GET" &&
+    path === "/issues/dashboard-stats"
+) {
 
+    await issuesController.getDashboardStats(
+        req,
+        res
+    );
+
+    return true;
+
+}
   // /issues/:id
   const match = path.match(/^\/issues\/([^/]+)$/);
   if (match) {

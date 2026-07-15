@@ -184,6 +184,20 @@ if (
   );
 
 }
+// /projects/my
+if (
+  path === "/projects/my" &&
+  req.method === "GET"
+) {
+
+  await projectsController.listUserProjects(
+    req,
+    res
+  );
+
+  return true;
+
+}
   // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {

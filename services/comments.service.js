@@ -55,6 +55,7 @@ async function createComment({ issueId, message }) {
     entityId: issueId,
     action: "comment_added",
     message: "Comment added to issue",
+    userId: currentUser.id,
   });
 
   return comment;

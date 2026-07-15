@@ -1,12 +1,7 @@
 const sendJson = require("../utils/sendJson");
 const { requireAuth } = require("../utils/requireAuth");
 const { requireRole } = require("../utils/requireRole");
-
-const {
-  listActivityByEntity,
-  listRecentActivity,
-} = require("../services/activity.service");
-
+const {listActivityByEntity,listRecentActivity,getMyActivity:getMyActivityService,} = require("../services/activity.service");
 async function getIssueActivity(
   req,
   res,
@@ -89,9 +84,32 @@ async function getRecentActivity(
     }
   );
 }
+async function getMyActivity(req, res) {
 
-module.exports = {
+  const user =
+    await requireAuth(req);
+
+  requireRole(user, [
+    "admin",
+    "member",
+  ]);
+
+  const activities =
+    await getMyActivityService(
+      user.id
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: activities,
+    }
+  );
+}module.exports = {
   getIssueActivity,
   getProjectActivity,
   getRecentActivity,
+  getMyActivity,
 };

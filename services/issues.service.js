@@ -280,6 +280,7 @@ RETURNING *`,
       entityId: issue.id,
       action: "issue_created",
       message: `Issue "${issue.title}" created`,
+      userId: currentUser.id,
     });
 
     // ✅ SAVE CHANGES
@@ -589,7 +590,7 @@ RETURNING *`,
     action: statusChanged
       ? "issue_status_changed"
       : "issue_updated",
-
+    userId: currentUser.id,
     message: statusChanged
       ? `Issue status changed from ${oldStatus} to ${updatedIssue.status}`
       : `Issue "${updatedIssue.title}" updated`,
@@ -624,6 +625,7 @@ async function assignIssueById(id, { assignedTo }, currentUser) {
     entityId: issue.id,
     action: "issue_assigned",
     message: `Issue assigned to ${issue.assigned_to}`,
+    userId: currentUser.id,
   });
 
   return issue;
@@ -645,6 +647,7 @@ async function deleteIssue(id) {
     entityId: issue.id,
     action: "issue_deleted",
     message: `Issue "${issue.title}" deleted`,
+    userId: currentUser.id,
   });
 
   return issue;
@@ -744,6 +747,7 @@ async function reorderIssues(
     entityId: item.issueId,
     action: "issue_status_changed",
     message: `Issue moved from ${oldStatus} to ${item.status}`,
+    userId: currentUser.id,
     metadata: {
       fromStatus: oldStatus,
       toStatus: item.status,
@@ -759,6 +763,7 @@ async function reorderIssues(
     entityId: item.issueId,
     action: "issue_reordered",
     message: "Issue reordered on board",
+    userId: currentUser.id,
   },
   client
 );
@@ -838,6 +843,53 @@ async function getIssueKPIs() {
       Number(row.overdue),
   };
 }
+async function getMyDashboardStats(userId) {
+
+  const result = await pool.query(
+    `
+    SELECT
+
+      COUNT(*) AS assigned_to_me,
+
+      COUNT(*) FILTER (
+        WHERE status = 'done'
+      ) AS completed_issues,
+
+      COUNT(*) FILTER (
+        WHERE status <> 'done'
+      ) AS pending_issues,
+
+      COUNT(*) FILTER (
+        WHERE due_date < NOW()
+        AND status <> 'done'
+      ) AS overdue_issues
+
+    FROM issues
+
+    WHERE assigned_to = $1
+    `,
+    [userId]
+  );
+
+  return {
+    assignedToMe: Number(
+      result.rows[0].assigned_to_me
+    ),
+
+    completedIssues: Number(
+      result.rows[0].completed_issues
+    ),
+
+    pendingIssues: Number(
+      result.rows[0].pending_issues
+    ),
+
+    overdueIssues: Number(
+      result.rows[0].overdue_issues
+    ),
+  };
+
+}
 module.exports = {
   createIssue,
   listIssues,
@@ -848,4 +900,5 @@ module.exports = {
   listIssuesByProjectId,
   reorderIssues,
   getIssueKPIs,
+  getMyDashboardStats,
 };

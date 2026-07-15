@@ -137,7 +137,6 @@ async function insertProject(client, projectData) {
       allow_comments,
       allow_file_uploads,
 
-      completion_percentage,
 
       created_by,
       created_at,
@@ -159,7 +158,7 @@ async function insertProject(client, projectData) {
       $14,$15,$16,
       $17,
       $18,$19,
-      $20,$21
+      $20
     )
 
     RETURNING *
@@ -309,8 +308,6 @@ const project = await insertProject(client, [
 
   data.allow_file_uploads ?? true,
 
-  0,
-
   userId,
 
   now,
@@ -343,6 +340,7 @@ for (const member of projectTeam) {
 
     message:
       `Project "${project.project_name}" created`,
+      userId: currentUser.id,
   });
   await client.query("COMMIT");
   for (const member of projectTeam) {
@@ -386,98 +384,137 @@ await sendProjectAssignmentEmail({
   client.release();
 }
 }
+async function calculateProjectMetrics(project) {
+
+  const issuesResult = await pool.query(
+    `
+    SELECT *
+    FROM issues
+    WHERE project_id = $1
+    `,
+    [project.id]
+  );
+
+  const issues = issuesResult.rows;
+
+  const issueCount = issues.length;
+
+  const completedIssues =
+    issues.filter(
+      issue => issue.status === "done"
+    ).length;
+
+  const openIssues =
+    issues.filter(
+      issue => issue.status !== "done"
+    );
+
+  let priority = "low";
+
+  if (
+    openIssues.some(
+      issue => issue.priority === "critical"
+    )
+  ) {
+
+    priority = "critical";
+
+  } else if (
+    openIssues.some(
+      issue => issue.priority === "high"
+    )
+  ) {
+
+    priority = "high";
+
+  } else if (
+    openIssues.some(
+      issue => issue.priority === "medium"
+    )
+  ) {
+
+    priority = "medium";
+
+  }
+
+  const progress =
+    issueCount === 0
+      ? 0
+      : Math.round(
+          (completedIssues / issueCount) * 100
+        );
+
+  project.issueCount = issueCount;
+
+  project.completedIssues = completedIssues;
+
+  project.progress = progress;
+
+  project.priority = priority;
+
+  return project;
+
+}
 // ✅ LIST PROJECTS
 async function listProjects() {
+
   const projectsResult =
-  await pool.query(`
-    SELECT *
-    FROM projects
-    WHERE is_archived = false
-    ORDER BY created_at DESC
-  `);
+    await pool.query(`
+      SELECT *
+      FROM projects
+      WHERE is_archived = false
+      ORDER BY created_at DESC
+    `);
+
   const projects =
     projectsResult.rows;
 
   for (const project of projects) {
 
-    const issuesResult =
-      await pool.query(
-        `
-        SELECT *
-        FROM issues
-        WHERE project_id = $1
-        `,
-        [project.id]
-      );
+    await calculateProjectMetrics(project);
 
-    const issues =
-      issuesResult.rows;
-
-    const issueCount =
-      issues.length;
-
-    const completedIssues =
-      issues.filter(
-        issue =>
-          issue.status === "done"
-      ).length;
-     const openIssues =
-  issues.filter(
-    issue =>
-      issue.status !== "done"
-  );
-
-let priority = "low";
-
-if (
-  openIssues.some(
-    issue =>
-      issue.priority === "critical"
-  )
-) {
-
-  priority = "critical";
-
-} else if (
-  openIssues.some(
-    issue =>
-      issue.priority === "high"
-  )
-) {
-
-  priority = "high";
-
-} else if (
-  openIssues.some(
-    issue =>
-      issue.priority === "medium"
-  )
-) {
-
-  priority = "medium";
-}
-    const progress =
-      issueCount === 0
-        ? 0
-        : Math.round(
-            (
-              completedIssues /
-              issueCount
-            ) * 100
-          );
-
-    project.issueCount =
-      issueCount;
-
-    project.completedIssues =
-      completedIssues;
-
-    project.progress =
-      progress;
-      project.priority =
-  priority;
   }
 
+  return projects;
+}
+async function listUserProjects(userId) {
+
+  const result = await pool.query(
+    `
+    SELECT
+      p.*,
+      pm.permission_role,
+      pm.project_designation
+    FROM projects p
+    INNER JOIN project_members pm
+      ON p.id = pm.project_id
+    WHERE
+      pm.user_id = $1
+      AND p.is_archived = false
+    ORDER BY p.created_at DESC
+    `,
+    [userId]
+  );
+
+  const projects = result.rows;
+
+  for (const project of projects) {
+
+    await calculateProjectMetrics(project);
+
+    const membersResult = await pool.query(
+      `
+      SELECT COUNT(*)::int AS member_count
+      FROM project_members
+      WHERE project_id = $1
+      `,
+      [project.id]
+    );
+
+    project.member_count =
+      membersResult.rows[0].member_count;
+
+  }
   return projects;
 }
 // ✅ GET PROJECT BY ID
@@ -776,6 +813,7 @@ async function updateProjectById(id, updates, currentUser) {
     entityId: updatedProject.id,
     action: "project_updated",
     message: `Project "${updatedProject.project_name}" updated`,
+    userId: currentUser.id,
   });
 
   return updatedProject;
@@ -803,6 +841,7 @@ async function deleteProjectById(id) {
     entityId: project.id,
     action: "project_deleted",
     message: `Project "${project.project_name}" deleted`,
+    userId: currentUser.id,
   });
 
   return {
@@ -1142,7 +1181,7 @@ async function archiveProjectById(
 
     message:
       `Project "${project.project_name}" archived`,
-
+    userId: currentUser.id,
   });
 
   return project;
@@ -1151,6 +1190,7 @@ async function archiveProjectById(
 module.exports = {
   createProject,
   listProjects,
+  listUserProjects,
   getProjectById,
   getProjectSummaryById,
   getProjectStatistics,
