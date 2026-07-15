@@ -92,12 +92,26 @@ return false;
 
 
 }
+//to get the dashboard stats for the user
 if (
     req.method === "GET" &&
     path === "/issues/dashboard-stats"
 ) {
 
     await issuesController.getDashboardStats(
+        req,
+        res
+    );
+
+    return true;
+
+}
+if (
+    req.method === "GET" &&
+    path === "/issues/task-distribution"
+) {
+
+    await issuesController.getTaskDistribution(
         req,
         res
     );

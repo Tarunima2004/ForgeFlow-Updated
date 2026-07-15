@@ -426,6 +426,30 @@ async function getProjectStatistics(
       data: statistics,
     }
   );
+}
+async function getTaskDistribution(req, res) {
+
+  const user =
+    await requireAuth(req);
+
+  requireRole(user, [
+    "admin",
+    "member",
+  ]);
+
+  const distribution =
+    await issuesService.getTaskDistribution(
+      user.id
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: distribution,
+    }
+  );
 
 }
 module.exports = {
@@ -443,4 +467,5 @@ module.exports = {
   getProjectTimeline,
   archiveProject,
   getProjectStatistics,
+  getTaskDistribution,
 };

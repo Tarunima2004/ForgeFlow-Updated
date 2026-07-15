@@ -32,3 +32,14 @@ export const getDashboardStats = async () => {
   return response.data.data;
 
 };
+export const getTaskDistribution =
+async () => {
+
+    const response =
+        await api.get(
+            "/issues/task-distribution"
+        );
+
+    return response.data.data;
+
+};

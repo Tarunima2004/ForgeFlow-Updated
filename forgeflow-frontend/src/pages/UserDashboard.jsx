@@ -3,7 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { getMyProjects } from "../services/projects.service";
 import Navbar from "../components/dashboard/Navbar";
 import {getMyActivity} from "../services/activity.service";
-import {getDashboardStats,} from "../services/issues.service";
+import {getDashboardStats,getTaskDistribution,} from "../services/issues.service";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
 const currentUser = {
   name: "Shakthi Admin",
@@ -13,12 +20,6 @@ const currentUser = {
     "https://lh3.googleusercontent.com/aida-public/AB6AXuC1BP_ylgHo2WeRTtDETP14kuzU7lobf1PLmTr31DrWyIH_epi5XDhCW7haSmtaGyczd9al438ysiqvg68uBKpEwfoBHEYnPg-qc7-tX1KLJp5VsyVVa_f9zH-UpasXeZL9FBYm2QfFimfbRNmg6qe1RIy9XQOI5X3w19k2WevTuVuNethUkoM1tX7DwWvbm_PiEM2EoDzz_n4MkllmDMI2k0lICwLxiKo_DbAit3uS4xz2ufL49rAe-rNvttlcaDQusdmJu299FvcV",
 };
 
-const taskDistribution = {
-  total: 178,
-  inProgressPercent: 75,
-  inReviewPercent: 15,
-  overduePercent: 10,
-};
 
 // =========================================================
 // Dashboard
@@ -35,6 +36,32 @@ export default function UserDashboard() {
   pendingIssues: 0,
 
   overdueIssues: 0,
+
+});
+const [taskDistribution, setTaskDistribution] =
+React.useState({
+
+  total: 0,
+
+  backlog: {
+    count: 0,
+    percentage: 0,
+  },
+
+  todo: {
+    count: 0,
+    percentage: 0,
+  },
+
+  inProgress: {
+    count: 0,
+    percentage: 0,
+  },
+
+  done: {
+    count: 0,
+    percentage: 0,
+  },
 
 });
   const navigate = useNavigate();
@@ -115,11 +142,64 @@ const loadDashboardStats = async () => {
   }
 
 };
+const loadTaskDistribution =
+async () => {
+
+    try {
+
+        const data =
+            await getTaskDistribution();
+
+        setTaskDistribution(data);
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Failed to load task distribution",
+            error
+        );
+
+    }
+
+};
 useEffect(() => {
   loadProjects();
   loadRecentActivity();
   loadDashboardStats();
+  loadTaskDistribution();
+
 }, []);
+const chartData = [
+
+  {
+    name: "Backlog",
+    value: taskDistribution.backlog.count,
+  },
+
+  {
+    name: "Todo",
+    value: taskDistribution.todo.count,
+  },
+
+  {
+    name: "In Progress",
+    value: taskDistribution.inProgress.count,
+  },
+
+  {
+    name: "Done",
+    value: taskDistribution.done.count,
+  },
+
+];
+const COLORS = [
+  "#94A3B8",
+  "#3B82F6",
+  "#F59E0B",
+  "#22C55E",
+];
 
   return (
     <div className="bg-slate-50 text-slate-900">
@@ -484,106 +564,101 @@ useEffect(() => {
             <h4 className="text-lg font-semibold leading-[26px] mb-6">
               Task Distribution
             </h4>
-            <div className="flex flex-col items-center justify-center py-4">
-              <div className="relative h-48 w-48 mb-8">
-                <svg
-                  className="w-full h-full transform -rotate-90"
-                  viewBox="0 0 36 36"
+            <div className="flex flex-col items-center justify-center">
+
+    <div className="w-full h-64">
+
+        <ResponsiveContainer>
+
+            <PieChart>
+
+                <Pie
+                    data={chartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={55}
+                    outerRadius={80}
                 >
-                  <circle
-                    className="stroke-slate-200"
-                    cx="18"
-                    cy="18"
-                    fill="none"
-                    r="16"
-                    strokeWidth="3"
-                  ></circle>
-                  <circle
-                    className="stroke-blue-600"
-                    cx="18"
-                    cy="18"
-                    fill="none"
-                    r="16"
-                    strokeDasharray={`${taskDistribution.inProgressPercent}, 100`}
-                    strokeLinecap="round"
-                    strokeWidth="3"
-                  ></circle>
-                  <circle
-                    className="stroke-indigo-600"
-                    cx="18"
-                    cy="18"
-                    fill="none"
-                    r="16"
-                    strokeDasharray={`${taskDistribution.inReviewPercent}, 100`}
-                    strokeDashoffset={`-${taskDistribution.inProgressPercent}`}
-                    strokeLinecap="round"
-                    strokeWidth="3"
-                  ></circle>
-                  <circle
-                    className="stroke-red-700"
-                    cx="18"
-                    cy="18"
-                    fill="none"
-                    r="16"
-                    strokeDasharray={`${taskDistribution.overduePercent}, 100`}
-                    strokeDashoffset={`-${
-                      taskDistribution.inProgressPercent +
-                      taskDistribution.inReviewPercent
-                    }`}
-                    strokeLinecap="round"
-                    strokeWidth="3"
-                  ></circle>
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-2xl font-semibold leading-8 tracking-tight leading-none text-slate-900">
-                    {taskDistribution.total}
-                  </span>
-                  <span className="text-[11px] leading-[14px] font-medium text-slate-500">
-                    Total
-                  </span>
-                </div>
-              </div>
-              <div className="w-full space-y-3">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-blue-600"></span>
-                    <span className="text-[13px] leading-[18px]">
-                      In Progress
-                    </span>
-                  </div>
-                  <span className="text-xs leading-4 font-semibold tracking-wider">
-                    {taskDistribution.inProgressPercent}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-indigo-600"></span>
-                    <span className="text-[13px] leading-[18px]">
-                      In Review
-                    </span>
-                  </div>
-                  <span className="text-xs leading-4 font-semibold tracking-wider">
-                    {taskDistribution.inReviewPercent}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 rounded-full bg-red-700"></span>
-                    <span className="text-[13px] leading-[18px]">
-                      Overdue
-                    </span>
-                  </div>
-                  <span className="text-xs leading-4 font-semibold tracking-wider">
-                    {taskDistribution.overduePercent}%
-                  </span>
-                </div>
-              </div>
-            </div>
+
+                    {chartData.map(
+                        (
+                            entry,
+                            index
+                        ) => (
+
+                            <Cell
+                                key={index}
+                                fill={
+                                    COLORS[index]
+                                }
+                            />
+
+                        )
+                    )}
+
+                </Pie>
+
+                <Tooltip />
+
+            </PieChart>
+
+        </ResponsiveContainer>
+
+    </div>
+
+    <div className="text-center mt-4">
+        <p className="text-3xl font-bold">
+            {taskDistribution.total}
+        </p>
+        <p className="text-sm text-slate-500">
+            Total Tasks
+        </p>
+    </div>
+</div>
+<div className="w-full mt-8 space-y-3">
+
+  {chartData.map((item, index) => (
+
+    <div
+      key={item.name}
+      className="flex justify-between items-center"
+    >
+
+      <div className="flex items-center gap-2">
+
+        <span
+          className="w-3 h-3 rounded-full"
+          style={{
+            backgroundColor: COLORS[index],
+          }}
+        />
+
+        <span className="text-sm text-slate-700">
+
+          {item.name}
+
+        </span>
+
+      </div>
+
+      <div className="text-right">
+
+        <span className="font-semibold">
+
+          {item.value}
+
+        </span>
+
+      </div>
+
+    </div>
+
+  ))}
+
+</div>
           </div>
         </section>
       </main>
-
-  
     </div>
   );
 }

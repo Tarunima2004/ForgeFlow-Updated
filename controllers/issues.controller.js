@@ -504,8 +504,32 @@ async function getDashboardStats(req, res) {
       data: stats,
     }
   );
+}
+async function getTaskDistribution(req, res) {
 
-}module.exports = {
+  const user = await requireAuth(req);
+
+  requireRole(user, [
+    "admin",
+    "member",
+  ]);
+
+  const distribution =
+    await issuesService.getTaskDistribution(
+      user.id
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: distribution,
+    }
+  );
+
+}
+module.exports = {
   createIssue,
   createIssueForProject,
   listIssues,
@@ -517,4 +541,5 @@ async function getDashboardStats(req, res) {
   deleteIssue,
   getIssueKPIsController,
   getDashboardStats,
+  getTaskDistribution,
 };

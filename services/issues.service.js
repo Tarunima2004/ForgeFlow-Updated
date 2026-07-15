@@ -890,6 +890,113 @@ async function getMyDashboardStats(userId) {
   };
 
 }
+async function getTaskDistribution(userId) {
+
+  const result = await pool.query(
+    `
+    SELECT
+
+      COUNT(*) AS total,
+
+      COUNT(*) FILTER (
+        WHERE status = 'backlog'
+      ) AS backlog,
+
+      COUNT(*) FILTER (
+        WHERE status = 'todo'
+      ) AS todo,
+
+      COUNT(*) FILTER (
+        WHERE status = 'in_progress'
+      ) AS in_progress,
+
+      COUNT(*) FILTER (
+        WHERE status = 'done'
+      ) AS done
+
+    FROM issues
+
+    WHERE assigned_to = $1
+    `,
+    [userId]
+  );
+
+  const row = result.rows[0];
+
+  const total =
+    Number(row.total);
+
+  const backlog =
+    Number(row.backlog);
+
+  const todo =
+    Number(row.todo);
+
+  const inProgress =
+    Number(row.in_progress);
+
+  const done =
+    Number(row.done);
+
+  return {
+
+    total,
+
+    backlog: {
+
+      count: backlog,
+
+      percentage:
+        total === 0
+          ? 0
+          : Math.round(
+              (backlog / total) * 100
+            ),
+
+    },
+
+    todo: {
+
+      count: todo,
+
+      percentage:
+        total === 0
+          ? 0
+          : Math.round(
+              (todo / total) * 100
+            ),
+
+    },
+
+    inProgress: {
+
+      count: inProgress,
+
+      percentage:
+        total === 0
+          ? 0
+          : Math.round(
+              (inProgress / total) * 100
+            ),
+
+    },
+
+    done: {
+
+      count: done,
+
+      percentage:
+        total === 0
+          ? 0
+          : Math.round(
+              (done / total) * 100
+            ),
+
+    },
+
+  };
+
+}
 module.exports = {
   createIssue,
   listIssues,
@@ -901,4 +1008,5 @@ module.exports = {
   reorderIssues,
   getIssueKPIs,
   getMyDashboardStats,
+  getTaskDistribution,
 };
