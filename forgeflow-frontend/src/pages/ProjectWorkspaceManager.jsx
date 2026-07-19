@@ -1,4 +1,17 @@
-import React, { useState } from "react";
+import React, {
+  useState,
+  useEffect,
+} from "react";
+
+import { useParams } from "react-router-dom";
+
+import api from "../api/axios";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 // =========================================================
 // Hardcoded data, shaped so it can be swapped for API
@@ -28,132 +41,348 @@ const statistics = {
   completed: 56,
   overdue: 4,
 };
-
-const health = {
-  overallPercent: 72,
-  riskLevel: "Low",
-  overdueTasks: 4,
-  blockedIssues: 2,
-};
-
-const issues = [
-  {
-    id: "FF-101",
-    title: "Auth service timeout on retry",
-    type: "Bug",
-    typeIcon: "bug_report",
-    typeClass: "text-red-700",
-    priority: "CRITICAL",
-    priorityClass: "bg-red-100 text-red-900",
-    status: "To Do",
-    statusClass: "bg-slate-200 text-slate-500",
-    assigneeAvatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuAD_iWqX1lY_Fm5eVwWpjAMX4sUql9iNMVYhB41sNvqfiIf3kQPzVtqFZjleXn_A7aZbDgwD-wKEWGJYVKVWFjsCVZH6jYum7UrNT6cjJAqHILCx_VghtAH3cG-SLf4rrddX_C_9TblzkNE9cKh1auNAx0PuJaE5mjwIjKrM5ib3yaWysUhJnN7XvlKzfGKH7XX95KFVGGycgVYRUVBdVrYCTwNAZ0vaevo_UIGxbajjBbW-mJPdCymnImwCFpsOEFqrSybht64FunQ",
-  },
-  {
-    id: "FF-102",
-    title: "Update API documentation",
-    type: "Task",
-    typeIcon: "task_alt",
-    typeClass: "text-slate-500",
-    priority: "HIGH",
-    priorityClass: "bg-orange-100 text-orange-700",
-    status: "In Progress",
-    statusClass: "bg-blue-100 text-blue-600",
-    assigneeAvatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDTQWe63EtadkG1jfgrLtqCaHBcXP9FDyhJGj3KWKsQl1yrnGnNqWfDRm7CgY_076ZwbBq9E6oYcdnOmSZso9rwjMy_dXYIExEUxNnTVIYa_ARPi8QtRf97ojfi6CcMp0exN5NGHMkhAXroKfr5C1WuVomMVy1oeDNqqZfpwws5u30Om8VUm-Jn5f8kNtjxSMXCwZZxkcXG8DX9NdlkGNO6Pbqs9bDDUiP5Qv0BOjEfn-_QZfIX7Pu9kfl9B04cby58xX2d3E0vZBAF",
-  },
-];
-
-const team = [
-  {
-    name: "Shakthi Admin",
-    role: "Lead Manager",
-    online: true,
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuBxmbOod7OjalP1Pp3pROGxQ8qaLfLv-6K-02mu4j8Kz1YqqwFzvPv3xgrJboupMIHsCEavoCvtlYqbxKpXhsjo3LsvN2afkPoqmx_09Mi52-_7H0MZRMJZKaXfrJ5VennUSVdPylOMkNaPBmmwc9IODCMB16VVYZBgW23VFZe9fOiwOE5TveJMcDqgA08iqmOhhx4AwWqicOOplGei5Qx8QiQ3TkdydD1GVN59qwzPXNSESGIZV5n2zq4CAaGGfGc6I1ac0qyT8xqN",
-  },
-  {
-    name: "Sarah Loren",
-    role: "Backend Dev",
-    online: true,
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuDiABAbXVw1-zhYqUhlzppZ1YVUDLzbtkUWjuUCUN7H1k4rOyIpxR115DsfY5ungMR26MXlbZNiVBuWuA_8HiM2VC6M15SqfVshrGGcybJvs8FEErK4gDxVKY_3lq8BgnY1C1jrnZAoFVZY_PrdwXrXP83rkh_ThfqS9rNcaCYMzZfvUwVkquVCpKoUpSIuZi4ummdwTObjDkApfW5sa9s_PpkVYkyj7WhmfH9kXWjXn2fCEmduyg5_w-CnFXuG96RucQVmAiZqyqCO",
-  },
-  {
-    name: "Marco K.",
-    role: "UI/UX Designer",
-    online: false,
-    avatar:
-      "https://lh3.googleusercontent.com/aida-public/AB6AXuD9G9gWXv5hH__W5Tj8tLoFBc605SG5mXJ2lzPwUq8eYPebgKjNkSV53z-szTjqUJnXTHpNdHeWkduXFIEdrhwKD4aahP1mwCMQfOsZ_PeGcodWGM8m9Iam2lcnqtbTMLJ8egnMiPeFzTxZQ0Xbo5Xbnr44isSH977Sj1kj2Wkj4RnyBDoidXAHefEbBER_KG_jZyWLTZ7a8XxAM33Y3XKZ4-cXW3EBrUUPzmu3WB7wMiPRSG0hGM3qmhqVbBTwGUc46DOzoM8znBTj",
-  },
-];
-
-const activities = [
-  {
-    id: 1,
-    icon: "add_circle",
-    iconBg: "bg-blue-600",
-    actorName: "Shakthi Admin",
-    actionText: "created a new task",
-    targetText: "FF-105: UI Audit",
-    timestamp: "2 hours ago",
-  },
-  {
-    id: 2,
-    icon: "check_circle",
-    iconBg: "bg-green-500",
-    actorName: "Marco K.",
-    actionText: "completed",
-    targetText: "FF-098: DB Migration",
-    timestamp: "5 hours ago",
-  },
-  {
-    id: 3,
-    icon: "comment",
-    iconBg: "bg-amber-500",
-    actorName: "Sarah L.",
-    actionText: "commented on",
-    targetText: "FF-101",
-    timestamp: "Yesterday at 4:30 PM",
-  },
-];
-
-const deadlines = [
-  {
-    id: 1,
-    title: "Database Migration",
-    detail: "Overdue: Oct 24, 2023",
-    icon: "event_busy",
-    overdue: true,
-  },
-  {
-    id: 2,
-    title: "API Security Audit",
-    detail: "Due: Nov 15, 2024",
-    icon: "calendar_month",
-    overdue: false,
-  },
-  {
-    id: 3,
-    title: "Client Demo Beta",
-    detail: "Due: Dec 01, 2024",
-    icon: "calendar_month",
-    overdue: false,
-  },
-];
-
 // =========================================================
 // ProjectWorkspaceManager
 // =========================================================
 export default function ProjectWorkspaceManager() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const { projectId } = useParams();
+  console.log(projectId);
 
-  const healthCircleCircumference = 364.4;
-  const healthStrokeDashoffset =
-    healthCircleCircumference -
-    (healthCircleCircumference * health.overallPercent) / 100;
+const [projectData, setProjectData] =useState(null);
+const [statisticsData, setStatisticsData] =useState(null);
+const [healthData, setHealthData] =useState(null);
+const [recentIssues, setRecentIssues] =useState([]);
+const [teamMembers, setTeamMembers] =useState([]);
+const [upcomingDeadlines, setUpcomingDeadlines] =useState([]);
+const [activities, setActivities] =useState([]);
+const [loading, setLoading] =useState(true);
+  async function loadProject() {
 
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}`
+      );
+
+    setProjectData(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+async function loadStatistics() {
+
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}/statistics`
+      );
+
+    setStatisticsData(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+async function loadHealth() {
+
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}/health`
+      );
+
+    setHealthData(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+async function loadRecentIssues() {
+
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}/recent-issues`
+      );
+
+    setRecentIssues(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+async function loadTeamMembers() {
+
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}/members`
+      );
+
+    setTeamMembers(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+}
+async function loadUpcomingDeadlines() {
+
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}/upcoming-deadlines`
+      );
+
+    setUpcomingDeadlines(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+async function loadActivity() {
+
+  try {
+
+    const response =
+      await api.get(
+        `/projects/${projectId}/activity`
+      );
+
+    setActivities(
+      response.data.data
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+}
+useEffect(() => {
+  async function initialize() {
+
+    setLoading(true);
+
+    await Promise.all([
+      loadProject(),
+      loadStatistics(),
+      loadHealth(),
+      loadRecentIssues(),
+      loadTeamMembers(),
+      loadUpcomingDeadlines(),
+      loadActivity(),
+    ]);
+    setLoading(false);
+  }
+  initialize();
+}, [projectId]);
+const projectHealthChart = [
+  {
+    name: "Completed",
+    value: healthData?.completionPercentage ?? 0,
+  },
+
+  {
+    name: "Remaining",
+    value:
+      100 -
+      (healthData?.completionPercentage ?? 0),
+  },
+
+];
+
+const HEALTH_COLORS = [
+
+  "#2563EB",
+
+  "#E2E8F0",
+
+];
+function getIssueTypeIcon(type) {
+
+  switch (type?.toLowerCase()) {
+
+    case "bug":
+      return "bug_report";
+
+    case "epic":
+      return "target";
+
+    case "story":
+      return "menu_book";
+
+    case "improvement":
+      return "trending_up";
+
+    default:
+      return "task";
+  }
+
+}
+
+function getIssueTypeClass(type) {
+
+  switch (type?.toLowerCase()) {
+
+    case "bug":
+      return "text-red-600";
+
+    case "epic":
+      return "text-violet-600";
+
+    case "story":
+      return "text-green-600";
+
+    case "improvement":
+      return "text-amber-600";
+
+    default:
+      return "text-blue-600";
+  }
+
+}
+
+function getPriorityClass(priority) {
+
+  switch (priority?.toLowerCase()) {
+
+    case "critical":
+      return "bg-red-100 text-red-700";
+
+    case "high":
+      return "bg-orange-100 text-orange-700";
+
+    case "medium":
+      return "bg-yellow-100 text-yellow-700";
+
+    case "low":
+      return "bg-green-100 text-green-700";
+
+    default:
+      return "bg-slate-100 text-slate-600";
+  }
+
+}
+
+function getStatusClass(status) {
+
+  switch (status?.toLowerCase()) {
+
+    case "done":
+      return "bg-green-100 text-green-700";
+
+    case "in_progress":
+      return "bg-blue-100 text-blue-700";
+
+    case "todo":
+      return "bg-amber-100 text-amber-700";
+
+    case "backlog":
+      return "bg-slate-200 text-slate-700";
+
+    default:
+      return "bg-slate-100 text-slate-600";
+  }
+
+}
+
+function formatLabel(value) {
+
+  if (!value) return "--";
+
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, char => char.toUpperCase());
+
+}
+function getActivityIcon(action) {
+
+  switch (action) {
+
+    case "issue_created":
+      return "add_circle";
+
+    case "issue_updated":
+      return "edit";
+
+    case "issue_status_changed":
+      return "swap_horiz";
+
+    case "issue_completed":
+      return "check_circle";
+
+    case "issue_reordered":
+      return "drag_indicator";
+
+    default:
+      return "history";
+
+  }
+
+}
+function getActivityColor(action) {
+
+  switch (action) {
+
+    case "issue_created":
+      return "bg-blue-600";
+
+    case "issue_updated":
+      return "bg-indigo-600";
+
+    case "issue_status_changed":
+      return "bg-green-600";
+
+    case "issue_completed":
+      return "bg-emerald-600";
+
+    case "issue_reordered":
+      return "bg-violet-600";
+
+    default:
+      return "bg-slate-500";
+
+  }
+
+}
   return (
     <div className="bg-slate-50 text-slate-900">
       {/* Top Navigation Bar */}
@@ -215,10 +444,10 @@ export default function ProjectWorkspaceManager() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold leading-[26px] font-extrabold text-slate-900">
-                  {project.name}
+                  {projectData?.project_name}
                 </h2>
                 <p className="text-[11px] leading-[14px] font-medium text-slate-500">
-                  {project.code}
+                  {projectData?.project_code}
                 </p>
               </div>
             </div>
@@ -296,24 +525,24 @@ export default function ProjectWorkspaceManager() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700 uppercase tracking-wider">
-                  {project.status}
+                  {projectData?.status}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 uppercase tracking-wider">
-                  {project.priority}
+                  {projectData?.priority}
                 </span>
               </div>
               <h1 className="text-3xl font-bold leading-[38px] tracking-tight text-slate-900">
-                {project.name}
+                {projectData?.project_name}
               </h1>
               <div className="flex items-center gap-4 mt-2">
                 <div className="w-48 h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-600 rounded-full"
-                    style={{ width: `${project.progress}%` }}
+                    style={{width: `${projectData?.progress ?? 0}%`,}}
                   ></div>
                 </div>
                 <span className="text-xs leading-4 font-semibold tracking-wider text-blue-600">
-                  {project.progress}% Completed
+                  {projectData?.progress ?? 0}% Completed
                 </span>
               </div>
             </div>
@@ -340,7 +569,7 @@ export default function ProjectWorkspaceManager() {
                 Total Issues
               </p>
               <h3 className="text-2xl font-semibold leading-8 tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                {statistics.totalIssues}
+                {statisticsData?.totalIssues ?? 0}
               </h3>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-blue-600 transition-colors group cursor-default">
@@ -348,7 +577,7 @@ export default function ProjectWorkspaceManager() {
                 Backlog
               </p>
               <h3 className="text-2xl font-semibold leading-8 tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                {statistics.backlog}
+                {statisticsData?.backlog ?? 0}
               </h3>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-blue-600 transition-colors group cursor-default">
@@ -356,7 +585,7 @@ export default function ProjectWorkspaceManager() {
                 To Do
               </p>
               <h3 className="text-2xl font-semibold leading-8 tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                {statistics.todo}
+                {statisticsData?.todo ?? 0}
               </h3>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-blue-600 transition-colors group cursor-default">
@@ -364,7 +593,7 @@ export default function ProjectWorkspaceManager() {
                 In Progress
               </p>
               <h3 className="text-2xl font-semibold leading-8 tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                {statistics.inProgress}
+                {statisticsData?.inProgress ?? 0}
               </h3>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-blue-600 transition-colors group cursor-default">
@@ -372,7 +601,7 @@ export default function ProjectWorkspaceManager() {
                 Completed
               </p>
               <h3 className="text-2xl font-semibold leading-8 tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors">
-                {statistics.completed}
+                {statisticsData?.done ?? 0}
               </h3>
             </div>
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:border-red-700 transition-colors group cursor-default">
@@ -380,7 +609,7 @@ export default function ProjectWorkspaceManager() {
                 Overdue
               </p>
               <h3 className="text-2xl font-semibold leading-8 tracking-tight text-red-700">
-                {statistics.overdue}
+                {statisticsData?.overdue ?? 0}
               </h3>
             </div>
           </div>
@@ -401,7 +630,7 @@ export default function ProjectWorkspaceManager() {
                 </div>
                 <div className="p-6">
                   <p className="text-sm leading-5 text-slate-500 mb-6 leading-relaxed">
-                    {project.description}
+                    {projectData?.description || "No description available."}
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="flex items-center gap-3">
@@ -414,9 +643,33 @@ export default function ProjectWorkspaceManager() {
                         <p className="text-[11px] leading-[14px] font-medium text-slate-500">
                           Timeline
                         </p>
-                        <p className="text-[13px] leading-[18px] font-bold">
-                          {project.timeline}
-                        </p>
+                        <p className="font-semibold">
+
+  {projectData?.start_date
+    ? new Date(projectData.start_date).toLocaleDateString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }
+      )
+    : "--"}
+
+  {" - "}
+
+  {projectData?.end_date
+    ? new Date(projectData.end_date).toLocaleDateString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }
+      )
+    : "--"}
+
+</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -429,9 +682,11 @@ export default function ProjectWorkspaceManager() {
                         <p className="text-[11px] leading-[14px] font-medium text-slate-500">
                           Visibility
                         </p>
-                        <p className="text-[13px] leading-[18px] font-bold">
-                          {project.visibility}
+                      
+                          <p className="font-semibold">
+                            {projectData?.visibility || "--"}
                         </p>
+                      
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -444,8 +699,8 @@ export default function ProjectWorkspaceManager() {
                         <p className="text-[11px] leading-[14px] font-medium text-slate-500">
                           Department
                         </p>
-                        <p className="text-[13px] leading-[18px] font-bold">
-                          {project.department}
+                        <p className="font-semibold">
+                          {projectData?.department || "--"}
                         </p>
                       </div>
                     </div>
@@ -491,7 +746,7 @@ export default function ProjectWorkspaceManager() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {issues.map((issue) => (
+                      {recentIssues.map((issue) => (
                         <tr
                           key={issue.id}
                           className="hover:bg-slate-100 transition-colors cursor-pointer"
@@ -504,36 +759,36 @@ export default function ProjectWorkspaceManager() {
                           </td>
                           <td className="px-6 py-4">
                             <span
-                              className={`flex items-center gap-1.5 text-[12px] font-bold ${issue.typeClass}`}
+                              className={`flex items-center gap-1.5 text-[12px] font-bold ${getIssueTypeClass(issue.issue_type)}`}
                             >
                               <span className="material-symbols-outlined text-[16px]">
-                                {issue.typeIcon}
+                                {getIssueTypeIcon(issue.issue_type)}
                               </span>{" "}
-                              {issue.type}
+                              {formatLabel(issue.issue_type)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${issue.priorityClass}`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${getPriorityClass(issue.priority)}`}
                             >
-                              {issue.priority}
+                              {formatLabel(issue.priority)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${issue.statusClass}`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${getStatusClass(issue.status)}`}
                             >
-                              {issue.status}
+                              {formatLabel(issue.status)}
                             </span>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 border border-white">
-                              <img
-                                className="w-full h-full rounded-full object-cover"
-                                alt={`${issue.id} assignee avatar`}
-                                src={issue.assigneeAvatar}
-                              />
-                            </div>
+                            <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">
+
+  {issue.assignee
+    ? issue.assignee.charAt(0).toUpperCase()
+    : "U"}
+
+</div>
                           </td>
                         </tr>
                       ))}
@@ -548,31 +803,45 @@ export default function ProjectWorkspaceManager() {
                   Recent Activity
                 </h3>
                 <div className="space-y-6 relative before:content-[''] before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200">
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="flex gap-4 relative z-10">
-                      <div
-                        className={`w-10 h-10 rounded-full ${activity.iconBg} text-white flex items-center justify-center border-4 border-white shadow-sm`}
-                      >
-                        <span className="material-symbols-outlined text-[20px]">
-                          {activity.icon}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-[13px] leading-[18px] text-slate-900">
-                          <span className="font-bold">
-                            {activity.actorName}
-                          </span>{" "}
-                          {activity.actionText}{" "}
-                          <span className="text-blue-600 font-bold">
-                            {activity.targetText}
-                          </span>
-                        </p>
-                        <p className="text-[11px] leading-[14px] font-medium text-slate-500">
-                          {activity.timestamp}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                  {activities.map((activity) => {
+  const icon = getActivityIcon(activity.action);
+  const iconBg = getActivityColor(activity.action);
+
+  return (
+    <div
+      key={activity.id}
+      className="flex gap-4 relative z-10"
+    >
+      <div
+        className={`w-10 h-10 rounded-full ${iconBg} text-white flex items-center justify-center border-4 border-white shadow-sm`}
+      >
+        <span className="material-symbols-outlined text-[20px]">
+          {icon}
+        </span>
+      </div>
+
+      <div className="flex-1">
+        <p className="text-[13px] leading-[18px] text-slate-900">
+          <span className="font-bold">
+            {activity.user_name}
+          </span>
+        </p>
+
+        <p className="text-[13px] leading-[18px] text-slate-600">
+          {activity.message}
+        </p>
+
+        <p className="text-[13px] font-semibold text-blue-600">
+          {activity.issue_key} • {activity.title}
+        </p>
+
+        <p className="text-[11px] leading-[14px] font-medium text-slate-500">
+          {new Date(activity.created_at).toLocaleString()}
+        </p>
+      </div>
+    </div>
+  );
+})}
                 </div>
               </section>
             </div>
@@ -626,36 +895,69 @@ export default function ProjectWorkspaceManager() {
                   Project Health
                 </h3>
                 <div className="flex items-center justify-center mb-6 relative">
-                  <svg className="w-32 h-32 transform -rotate-90">
-                    <circle
-                      className="text-slate-200"
-                      cx="64"
-                      cy="64"
-                      fill="transparent"
-                      r="58"
-                      stroke="currentColor"
-                      strokeWidth="8"
-                    ></circle>
-                    <circle
-                      className="text-blue-600 transition-all duration-1000 ease-out"
-                      cx="64"
-                      cy="64"
-                      fill="transparent"
-                      r="58"
-                      stroke="currentColor"
-                      strokeDasharray={healthCircleCircumference}
-                      strokeDashoffset={healthStrokeDashoffset}
-                      strokeWidth="8"
-                    ></circle>
-                  </svg>
-                  <div className="absolute flex flex-col items-center">
-                    <span className="text-2xl font-semibold leading-8 tracking-tight font-bold text-slate-900">
-                      {health.overallPercent}%
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-bold uppercase">
-                      Overall
-                    </span>
-                  </div>
+                  <div className="relative w-full h-64">
+
+  <ResponsiveContainer>
+
+    <PieChart>
+
+      <Pie
+
+        data={projectHealthChart}
+
+        dataKey="value"
+
+        innerRadius={70}
+
+        outerRadius={90}
+        startAngle={90}
+        endAngle={-270}
+        stroke="none"
+      >
+        {projectHealthChart.map(
+
+          (
+            entry,
+            index
+          ) => (
+
+            <Cell
+
+              key={index}
+
+              fill={
+                HEALTH_COLORS[index]
+              }
+
+            />
+
+          )
+
+        )}
+
+      </Pie>
+
+    </PieChart>
+
+  </ResponsiveContainer>
+
+  <div className="absolute inset-0 flex flex-col items-center justify-center">
+
+    <h2 className="text-4xl font-bold text-slate-900">
+
+      {healthData?.completionPercentage ?? 0}%
+
+    </h2>
+
+    <p className="text-sm text-slate-500 tracking-wide">
+
+      OVERALL
+
+    </p>
+
+  </div>
+
+</div>
                 </div>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
@@ -663,7 +965,7 @@ export default function ProjectWorkspaceManager() {
                       Risk Level
                     </span>
                     <span className="text-[13px] leading-[18px] font-bold text-green-600">
-                      {health.riskLevel}
+                      {"--"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -671,7 +973,7 @@ export default function ProjectWorkspaceManager() {
                       Overdue Tasks
                     </span>
                     <span className="text-[13px] leading-[18px] font-bold text-red-700">
-                      {health.overdueTasks}
+                      {statisticsData?.overdue ?? 0}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -679,114 +981,167 @@ export default function ProjectWorkspaceManager() {
                       Blocked Issues
                     </span>
                     <span className="text-[13px] leading-[18px] font-bold text-amber-600">
-                      {health.blockedIssues}
+                      {"--"}
                     </span>
                   </div>
                 </div>
               </section>
+{/* Team Card */}
+<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <div className="flex justify-between items-center mb-6">
+    <h3 className="text-lg font-semibold leading-[26px] text-slate-900">
+      Team
+    </h3>
 
-              {/* Team Card */}
-              <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-semibold leading-[26px] text-slate-900">
-                    Team
-                  </h3>
-                  <span className="text-[11px] leading-[14px] font-bold text-blue-600 cursor-pointer hover:underline">
-                    Manage
-                  </span>
-                </div>
-                <div className="space-y-4">
-                  {team.map((member) => (
-                    <div
-                      key={member.name}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-10 h-10 rounded-full bg-slate-200">
-                            <img
-                              className="w-full h-full rounded-full object-cover"
-                              alt={`${member.name} avatar`}
-                              src={member.avatar}
-                            />
-                          </div>
-                          <div
-                            className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${
-                              member.online ? "bg-green-500" : "bg-slate-300"
-                            }`}
-                          ></div>
-                        </div>
-                        <div>
-                          <p className="text-[13px] leading-[18px] font-bold">
-                            {member.name}
-                          </p>
-                          <p className="text-[11px] leading-[14px] font-medium text-slate-500">
-                            {member.role}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="material-symbols-outlined text-slate-500 text-[18px] cursor-pointer">
-                        more_vert
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
+    <span className="text-[11px] leading-[14px] font-bold text-blue-600 cursor-pointer hover:underline">
+      Manage
+    </span>
+  </div>
 
-              {/* Upcoming Deadlines Card */}
-              <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-                <h3 className="text-lg font-semibold leading-[26px] text-slate-900 mb-6">
-                  Upcoming Deadlines
-                </h3>
-                <div className="space-y-4">
-                  {deadlines.map((deadline) =>
-                    deadline.overdue ? (
-                      <div
-                        key={deadline.id}
-                        className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100"
-                      >
-                        <div className="mt-0.5 text-red-700">
-                          <span className="material-symbols-outlined text-[18px]">
-                            {deadline.icon}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-[13px] leading-[18px] font-bold text-red-700">
-                            {deadline.title}
-                          </p>
-                          <p className="text-[11px] leading-[14px] font-medium text-red-700">
-                            {deadline.detail}
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        key={deadline.id}
-                        className="flex items-start gap-3 p-3 bg-slate-100 rounded-lg border border-slate-200"
-                      >
-                        <div className="mt-0.5 text-blue-600">
-                          <span className="material-symbols-outlined text-[18px]">
-                            {deadline.icon}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-[13px] leading-[18px] font-bold">
-                            {deadline.title}
-                          </p>
-                          <p className="text-[11px] leading-[14px] font-medium text-slate-500">
-                            {deadline.detail}
-                          </p>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              </section>
-            </div>
-          </div>
-        </main>
+  <div className="space-y-4">
+
+    {teamMembers.length === 0 ? (
+
+      <div className="py-10 text-center text-slate-500">
+        No team members assigned yet.
       </div>
 
+    ) : (
+
+      teamMembers.map((member) => (
+
+        <div
+          key={member.id}
+          className="flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+
+            <div className="relative">
+
+              <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold">
+                {member.name
+                  ? member.name.charAt(0).toUpperCase()
+                  : "U"}
+              </div>
+
+              <div className="absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full bg-slate-300"></div>
+
+            </div>
+
+            <div>
+
+              <p className="text-[13px] leading-[18px] font-bold">
+                {member.name}
+              </p>
+
+              <p className="text-[11px] leading-[14px] font-medium text-slate-500">
+                {formatLabel(member.permission_role ?? member.role)}
+
+                {member.department && (
+                  <> • {member.department}</>
+                )}
+              </p>
+
+            </div>
+
+          </div>
+          <span className="material-symbols-outlined text-slate-500 text-[18px] cursor-pointer">
+            more_vert
+          </span>
+        </div>
+      ))
+    )}
+  </div>
+</section>
+
+             {/* Upcoming Deadlines Card */}
+<section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+  <h3 className="text-lg font-semibold leading-[26px] text-slate-900 mb-6">
+    Upcoming Deadlines
+  </h3>
+
+  <div className="space-y-4">
+
+    {upcomingDeadlines.map((deadline) => {
+
+      const overdue =
+        new Date(deadline.due_date) < new Date();
+
+      return overdue ? (
+
+        <div
+          key={deadline.id}
+          className="flex items-start gap-3 p-3 bg-red-50 rounded-lg border border-red-100"
+        >
+          <div className="mt-0.5 text-red-700">
+            <span className="material-symbols-outlined text-[18px]">
+              event_busy
+            </span>
+          </div>
+
+          <div>
+            <p className="text-[13px] leading-[18px] font-bold text-red-700">
+              {deadline.title}
+            </p>
+
+            <p className="text-[11px] leading-[14px] font-medium text-red-700">
+              Due:{" "}
+              {new Date(deadline.due_date).toLocaleDateString(
+                "en-GB",
+                {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }
+              )}
+            </p>
+          </div>
+        </div>
+
+      ) : (
+
+        <div
+          key={deadline.id}
+          className="flex items-start gap-3 p-3 bg-slate-100 rounded-lg border border-slate-200"
+        >
+          <div className="mt-0.5 text-blue-600">
+            <span className="material-symbols-outlined text-[18px]">
+              calendar_month
+            </span>
+          </div>
+
+          <div>
+            <p className="text-[13px] leading-[18px] font-bold">
+              {deadline.title}
+            </p>
+
+            <p className="text-[11px] leading-[14px] font-medium text-slate-500">
+              Due:{" "}
+              {new Date(deadline.due_date).toLocaleDateString(
+                "en-GB",
+                {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                }
+              )}
+            </p>
+          </div>
+        </div>
+
+      );
+
+    })}
+
+  </div>
+</section>
+</div>
+
+          </div>
+
+        </main>
+
+      </div>
       {/* Floating Action Button */}
       <button className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 active:scale-95 transition-all flex items-center justify-center z-50">
         <span className="material-symbols-outlined text-[28px]">add</span>

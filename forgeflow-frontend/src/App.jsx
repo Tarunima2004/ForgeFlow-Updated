@@ -52,7 +52,7 @@ function App() {
   }
 />
 <Route
-  path="/manager-workspace"
+  path="/manager-workspace/:projectId"
   element={
     <ProtectedRoute>
       <ProjectWorkspaceManager />
@@ -60,7 +60,7 @@ function App() {
   }
 />
 <Route
-  path="/member-workspace"
+  path="/member-workspace/:projectId"
   element={
     <ProtectedRoute>
       <ProjectWorkspaceMember />

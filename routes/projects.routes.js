@@ -60,7 +60,7 @@ if (
     const projectId = activityMatch[1];
 
     if (req.method === "GET") {
-      await activityController.getProjectActivity(req, res, projectId);
+      await projectsController.getProjectActivity(req, res, projectId);
       return true;
     }
 
@@ -198,7 +198,63 @@ if (
   return true;
 
 }
-  // /projects/:id
+if (
+  req.method === "GET" &&
+  /^\/projects\/[^/]+\/recent-issues$/.test(path)
+) {
+
+  const projectId =
+    path.split("/")[2];
+
+  await projectsController.getRecentIssues(
+    req,
+    res,
+    projectId
+  );
+
+  return true;
+
+}
+if (
+  req.method === "GET" &&
+  /^\/projects\/[^/]+\/health$/.test(path)
+) {
+
+  const projectId =
+    path.split("/")[2];
+
+  await projectsController.getSingleProjectHealth(
+    req,
+    res,
+    projectId
+  );
+  return true;
+
+}
+if (
+
+  req.method === "GET" &&
+
+  /^\/projects\/[^/]+\/upcoming-deadlines$/.test(path)
+
+) {
+
+  const projectId =
+    path.split("/")[2];
+
+  await projectsController.getUpcomingProjectDeadlines(
+
+    req,
+
+    res,
+
+    projectId
+
+  );
+
+  return true;
+
+}  // /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {
     const id = projectMatch[1];

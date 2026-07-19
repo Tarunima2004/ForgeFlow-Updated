@@ -452,6 +452,109 @@ async function getTaskDistribution(req, res) {
   );
 
 }
+async function getRecentIssues(
+  req,
+  res,
+  projectId
+) {
+
+  const user =
+    await requireAuth(req);
+
+  requireRole(user, [
+    "admin",
+    "member",
+  ]);
+
+  const issues =
+    await projectsService.getRecentProjectIssues(
+      projectId
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: issues,
+    }
+  );
+}
+async function getSingleProjectHealth(
+  req,
+  res,
+  projectId
+) {
+
+  const user =
+    await requireAuth(req);
+
+  requireRole(user, [
+    "admin",
+    "member",
+  ]);
+
+  const health =
+    await projectsService.getSingleProjectHealth(
+      projectId
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: health,
+    }
+  );
+
+}
+// ==========================================
+// Get Upcoming Project Deadlines
+// ==========================================
+
+async function getUpcomingProjectDeadlines(
+  req,
+  res,
+  projectId
+) {
+
+  const deadlines =
+    await projectsService.getUpcomingProjectDeadlines(
+      projectId
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: deadlines,
+    }
+  );
+
+}
+async function getProjectActivity(
+  req,
+  res,
+  projectId
+) {
+
+  const activity =
+    await projectsService.getProjectActivity(
+      projectId
+    );
+
+  return sendJson(
+    res,
+    200,
+    {
+      success: true,
+      data: activity,
+    }
+  );
+
+}
 module.exports = {
   createProject,
   listProjects,
@@ -468,4 +571,8 @@ module.exports = {
   archiveProject,
   getProjectStatistics,
   getTaskDistribution,
+  getRecentIssues,
+  getSingleProjectHealth,
+  getUpcomingProjectDeadlines,
+  getProjectActivity,
 };

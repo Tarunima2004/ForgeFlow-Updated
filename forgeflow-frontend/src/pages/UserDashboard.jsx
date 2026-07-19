@@ -72,14 +72,25 @@ React.useState({
  */
   const handleOpenProject = (project) => {
 
-  // Check if user has manager role for the project
+  console.log("====== CLICKED ======");
+
+  console.log(project);
+
+  console.log(project.id);
+
+  console.log(project.permission_role);
+
   if (project.permission_role === "manager") {
 
-    navigate("/manager-workspace");
+    navigate(
+      `/manager-workspace/${project.id}`
+    );
 
   } else {
 
-    navigate("/member-workspace");
+    navigate(
+      `/member-workspace/${project.id}`
+    );
 
   }
 
@@ -648,13 +659,9 @@ const COLORS = [
           {item.value}
 
         </span>
-
       </div>
-
     </div>
-
   ))}
-
 </div>
           </div>
         </section>

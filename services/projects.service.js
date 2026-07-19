@@ -4,6 +4,7 @@ const { HttpError, assertFound } = require("../utils/errors");
 const { getUserSnapshot } = require("../utils/authUserSnapshot");
 const { logActivity } = require("./activity.service");
 const {sendProjectAssignmentEmail,} = require("./email.service");
+const { AppError } = require("../utils/errors");
 
 function validateName(name) {
   const n = (name || "").trim();
@@ -526,6 +527,9 @@ async function getProjectById(id) {
 
   const project = result.rows[0];
   assertFound(project, "Project not found");
+  await calculateProjectMetrics(
+    project
+);
 
   return project;
 }
@@ -594,57 +598,59 @@ async function getProjectStatistics(projectId) {
     await pool.query(
       `
       SELECT
-        status
+
+        COUNT(*) AS total,
+
+        COUNT(*) FILTER (
+          WHERE status = 'backlog'
+        ) AS backlog,
+
+        COUNT(*) FILTER (
+          WHERE status = 'todo'
+        ) AS todo,
+
+        COUNT(*) FILTER (
+          WHERE status = 'in_progress'
+        ) AS in_progress,
+
+        COUNT(*) FILTER (
+          WHERE status = 'done'
+        ) AS done,
+
+        COUNT(*) FILTER (
+          WHERE due_date < CURRENT_DATE
+          AND status <> 'done'
+        ) AS overdue
+
       FROM issues
+
       WHERE project_id = $1
       `,
       [projectId]
     );
 
-  const issues =
-    result.rows;
-
-  let backlog = 0;
-  let todo = 0;
-  let inProgress = 0;
-  let done = 0;
-
-  for (const issue of issues) {
-
-    switch (issue.status) {
-
-      case "backlog":
-        backlog++;
-        break;
-
-      case "todo":
-        todo++;
-        break;
-
-      case "in_progress":
-        inProgress++;
-        break;
-
-      case "done":
-        done++;
-        break;
-
-    }
-
-  }
+  const row =
+    result.rows[0];
 
   return {
 
     totalIssues:
-      issues.length,
+      Number(row.total),
 
-    backlog,
+    backlog:
+      Number(row.backlog),
 
-    todo,
+    todo:
+      Number(row.todo),
 
-    inProgress,
+    inProgress:
+      Number(row.in_progress),
 
-    done,
+    done:
+      Number(row.done),
+
+    overdue:
+      Number(row.overdue),
 
   };
 
@@ -1187,6 +1193,205 @@ async function archiveProjectById(
   return project;
 
 }
+async function getRecentProjectIssues(projectId) {
+
+  const result =
+    await pool.query(
+      `
+      SELECT
+
+        i.id,
+
+        i.title,
+
+        i.issue_type,
+
+        i.priority,
+
+        i.status,
+
+        i.due_date,
+
+        u.name AS assignee
+
+      FROM issues i
+
+      LEFT JOIN users u
+      ON u.id = i.assigned_to
+
+      WHERE i.project_id = $1
+
+      ORDER BY i.updated_at DESC
+
+      LIMIT 5
+      `,
+      [projectId]
+    );
+
+  return result.rows;
+}
+async function getSingleProjectHealth(
+  projectId
+) {
+
+  // Make sure the project exists
+  await getProjectById(
+    projectId
+  );
+
+  const result =
+    await pool.query(
+      `
+      SELECT
+
+        COUNT(*) AS total,
+
+        COUNT(*) FILTER (
+          WHERE status = 'done'
+        ) AS completed
+
+      FROM issues
+
+      WHERE project_id = $1
+      `,
+      [projectId]
+    );
+
+  const row =
+    result.rows[0];
+
+  const total =
+    Number(row.total);
+
+  const completed =
+    Number(row.completed);
+
+  const remaining =
+    total - completed;
+
+  const completionPercentage =
+    total === 0
+      ? 0
+      : Math.round(
+          (completed / total) * 100
+        );
+
+  return {
+
+    total,
+
+    completed,
+
+    remaining,
+
+    completionPercentage,
+
+  };
+
+}
+// ==========================================
+// Get Upcoming Project Deadlines
+// ==========================================
+
+async function getUpcomingProjectDeadlines(projectId) {
+
+  const projectResult = await pool.query(
+    `
+      SELECT id
+      FROM projects
+      WHERE id = $1
+        AND is_archived = false
+    `,
+    [projectId]
+  );
+
+  if (projectResult.rowCount === 0) {
+    throw new AppError(
+      "Project not found",
+      404,
+      "PROJECT_NOT_FOUND"
+    );
+  }
+
+  const result = await pool.query(
+    `
+      SELECT
+        id,
+        issue_key,
+        title,
+        issue_type,
+        priority,
+        status,
+        due_date
+      FROM issues
+      WHERE
+        project_id = $1
+        AND due_date IS NOT NULL
+        AND status <> 'done'
+      ORDER BY due_date ASC
+      LIMIT 5
+    `,
+    [projectId]
+  );
+
+  return result.rows;
+}
+async function getProjectActivity(projectId) {
+
+  const projectResult = await pool.query(
+    `
+      SELECT id
+      FROM projects
+      WHERE id = $1
+        AND is_archived = false
+    `,
+    [projectId]
+  );
+
+  if (projectResult.rowCount === 0) {
+    throw new Error("Project not found");
+  }
+
+  const result = await pool.query(
+    `
+      SELECT
+
+        a.id,
+
+        a.action,
+
+        a.message,
+
+        a.created_at,
+
+        u.id AS user_id,
+        u.name AS user_name,
+
+        i.id AS issue_id,
+        i.issue_key,
+        i.title
+
+      FROM activity a
+
+      INNER JOIN issues i
+        ON a.entity_type = 'issue'
+       AND a.entity_id = i.id
+
+      LEFT JOIN users u
+        ON u.id = a.user_id
+
+      WHERE i.project_id = $1
+
+      ORDER BY a.created_at DESC
+
+      LIMIT 10
+    `,
+    [projectId]
+  );
+
+  return result.rows;
+
+}
 module.exports = {
   createProject,
   listProjects,
@@ -1202,4 +1407,8 @@ module.exports = {
   getUpcomingDeadlines,
   getProjectTimeline,
   archiveProjectById,
+  getRecentProjectIssues,
+  getSingleProjectHealth,
+  getUpcomingProjectDeadlines,
+  getProjectActivity,
 };
