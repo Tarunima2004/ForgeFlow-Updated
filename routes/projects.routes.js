@@ -2,7 +2,7 @@ const projectsController = require("../controllers/projects.controller");
 const issuesController = require("../controllers/issues.controller");
 const activityController = require("../controllers/activity.controller");
 
-async function handleProjectsRoutes(req, res, path) {
+async function handleProjectsRoutes(req, res, path, url) {
   if (!path.startsWith("/projects")) {
     return false;
   }
@@ -36,23 +36,37 @@ if (
 
   return true;
 }
-  // /projects/:id/issues
-  const issuesMatch = path.match(/^\/projects\/([^/]+)\/issues$/);
-  if (issuesMatch) {
-    const projectId = issuesMatch[1];
+  // /projects/:projectId/issues
+const projectIssuesMatch =
+    path.match(/^\/projects\/([^/]+)\/issues$/);
+
+if (projectIssuesMatch) {
+
+    const projectId = projectIssuesMatch[1];
 
     if (req.method === "POST") {
-      await issuesController.createIssueForProject(req, res, projectId);
-      return true;
+
+        await issuesController.createIssueForProject(
+            req,
+            res,
+            projectId
+        );
+
+        return true;
     }
 
     if (req.method === "GET") {
-      await issuesController.listIssuesForProject(req, res, projectId);
-      return true;
-    }
 
+        await issuesController.listProjectIssues(
+            req,
+            res,
+            url,
+            projectId
+        );
+        return true;
+    }
     return false;
-  }
+}
 
   // /projects/:id/activity
   const activityMatch = path.match(/^\/projects\/([^/]+)\/activity$/);
@@ -254,7 +268,8 @@ if (
 
   return true;
 
-}  // /projects/:id
+} 
+// /projects/:id
   const projectMatch = path.match(/^\/projects\/([^/]+)$/);
   if (projectMatch) {
     const id = projectMatch[1];

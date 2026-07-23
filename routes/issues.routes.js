@@ -14,11 +14,6 @@ async function handleIssuesRoutes(req, res, path, url) {
       return true;
     }
 
-    if (req.method === "GET") {
-      await issuesController.listIssues(req, res, url);
-      return true;
-    }
-
     return false;
   }
 
@@ -118,6 +113,18 @@ if (
 
     return true;
 
+}
+// /issues/my
+if (
+  req.method === "GET" &&
+  path === "/issues/my"
+) {
+  await issuesController.getMyIssues(
+    req,
+    res
+  );
+
+  return true;
 }
   // /issues/:id
   const match = path.match(/^\/issues\/([^/]+)$/);

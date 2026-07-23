@@ -4,7 +4,8 @@ const { assertFound } = require("../utils/errors");
 const { getUserSnapshot } = require("../utils/authUserSnapshot");
 const {assertRequiredString,assertOneOf,assertMinLength,assertValidDate,validateIssueType,validateLabels,validateIssueDates,} = require("../utils/validators");
 const { logActivity } = require("./activity.service");
-
+const { HttpError, ERROR_CODES } = require("../utils/errors");
+const { buildIssueQuery } = require("../utils/issueQueryBuilder");
 function assertAllowedStatus(status) {
   return assertOneOf(status, "status", ["backlog","todo", "in_progress", "done"]);
 }
@@ -39,15 +40,11 @@ function validateAssignedTo(assignedTo) {
 }
 
 // ✅ Ensure project exists
-async function ensureProjectExists(projectId) {
-  console.log("PROJECT ID CHECK:", projectId);
-
-  const result = await pool.query(
+async function ensureProjectExists(client, projectId) {
+  const result = await client.query(
     "SELECT id FROM projects WHERE id = $1",
     [projectId]
   );
-
-  console.log("DB RESULT:", result.rows);
 
   assertFound(result.rows[0], "Project not found");
 }
@@ -55,20 +52,12 @@ async function ensureProjectExists(projectId) {
 // Ensure Assigned User belongs to Project
 // ==========================================
 
-async function ensureProjectMember(
-  projectId,
-  userId
-) {
-
+async function ensureProjectMember(client,projectId,userId) {
   if (!userId) {
-
     return;
-
   }
-
   const result =
-    await pool.query(
-
+    await client.query(
       `
       SELECT id
       FROM project_members
@@ -76,22 +65,15 @@ async function ensureProjectMember(
       project_id = $1
       AND user_id = $2
       `,
-
       [
         projectId,
         userId,
       ]
-
     );
-
   assertFound(
-
     result.rows[0],
-
     "Assigned user is not a member of this project."
-
   );
-
 }
 // ✅ Get next rank
 async function getNextRankForProject(projectId) {
@@ -190,6 +172,7 @@ async function createIssue(
   {
     title,
     projectId = null,
+    parentIssueId = null,
     issueType = "Task",
     description = null,
     labels = [],
@@ -200,6 +183,7 @@ async function createIssue(
   },
   currentUser
 ) {
+  
   const issueKey =
   await generateIssueKey(
     projectId
@@ -213,13 +197,21 @@ async function createIssue(
 
     if (projectId) {
       projectId = projectId.trim();
-      await ensureProjectExists(projectId);
+      await ensureProjectExists(client, projectId);
       if (assignedTo) {
   await ensureProjectMember(
+    client,
     projectId,
     assignedTo
   );
 }
+  await validateIssueHierarchy(
+    client,
+    projectId,
+    issueType,
+    parentIssueId
+);
+
     }
 
     const now = new Date().toISOString();
@@ -232,8 +224,8 @@ async function createIssue(
     // ✅ INSERT ISSUE
     const result = await client.query(
       `INSERT INTO issues
-(id,issue_key,project_id,issue_type,title,description,status,priority,start_date,due_date,labels,rank,assigned_to,created_by,updated_by,created_at,updated_at)
-VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+(id,issue_key,project_id,issue_type,title,description,status,priority,start_date,due_date,labels,rank,assigned_to,created_by,updated_by,created_at,updated_at,parent_issue_id)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
 RETURNING *`,
       [
   crypto.randomUUID(),
@@ -269,6 +261,7 @@ RETURNING *`,
   userId,
   now,
   now,
+  parentIssueId
 ]
     );
 
@@ -303,112 +296,48 @@ RETURNING *`,
 }
 
 // ✅ List all issues
-async function listIssues({
-  status,
-  q,
-  priority,
-  assignedTo,
-  sort = "createdAt",
-  order = "desc",
-  page = 1,
-  limit = 10,
-  view,
-}) {
-  const values = [];
-  const conditions = [];
-
-  // Status filter
-  if (status) {
-    values.push(status);
-    conditions.push(`status = $${values.length}`);
+async function listProjectIssues(
+  projectId,
+  {
+    status,
+    issueType,
+    q,
+    priority,
+    assignedTo,
+    sort = "createdAt",
+    order = "desc",
+    page = 1,
+    limit = 10,
+    view,
   }
-if (q) {
-  values.push(`%${q.trim()}%`);
-  conditions.push(`title ILIKE $${values.length}`);
-}
-  // Priority filter
-  if (priority) {
-    values.push(priority);
-    conditions.push(`priority = $${values.length}`);
-  }
-
-  // Assigned user filter
-  if (assignedTo) {
-    values.push(assignedTo);
-    conditions.push(`assigned_to = $${values.length}`);
-  }
-
-  let query = `
-    SELECT *
-    FROM issues
-  `;
-
-  // WHERE clause
-  if (conditions.length > 0) {
-    query += ` WHERE ${conditions.join(" AND ")}`;
-  }
-
-  // Safe sort mapping
-  const sortMap = {
-    createdAt: "created_at",
-    updatedAt: "updated_at",
-  };
-
-  if (view === "board") {
-
-  query += `
-    ORDER BY
-      status ASC,
-      rank ASC NULLS LAST
-  `;
-
-} else {
-
-  const sortColumn =
-    sortMap[sort] || "created_at";
-
-  query += `
-    ORDER BY ${sortColumn}
-    ${order.toUpperCase()}
-  `;
-
-}
-
-  const offset = (page - 1) * limit;
-
-  values.push(limit);
-  values.push(offset);
-
-  query += `
-    LIMIT $${values.length - 1}
-    OFFSET $${values.length}
-  `;
-
-  const result = await pool.query(
+) {
+  const {
     query,
-    values
-  );
+    values,
+    countQuery,
+    countValues,
+  } = buildIssueQuery({
+    projectId,
+    status,
+    issueType,
+    priority,
+    assignedTo,
+    search: q,
+    sort,
+    order,
+    page,
+    limit,
+    view,
+  });
 
-  // Count query for pagination metadata
-  let countQuery = `
-    SELECT COUNT(*) AS total
-    FROM issues
-  `;
-
-  if (conditions.length > 0) {
-    countQuery += `
-      WHERE ${conditions.join(" AND ")}
-    `;
-  }
+  const result = await pool.query(query, values);
 
   const countResult = await pool.query(
     countQuery,
-    values.slice(0, conditions.length)
+    countValues
   );
 
-  const total = Number(
-    countResult.rows[0].total
-  );
+  const total = Number(countResult.rows[0].total);
 
   return {
     success: true,
@@ -425,8 +354,8 @@ if (q) {
   };
 }
 // ✅ Get issue by id
-async function getIssueById(id) {
-  const result = await pool.query(
+async function getIssueById(client, id) {
+  const result = await client.query(
     "SELECT * FROM issues WHERE id = $1",
     [id]
   );
@@ -441,10 +370,21 @@ async function getIssueById(id) {
 // ✅ Update issue
 async function updateIssue(
   id,
-  { title,issueType,description,status,labels,priority,startDate,dueDate,assignedTo, },
+  { title,issueType,parentIssueId,description,status,labels,priority,startDate,dueDate,assignedTo, },
   currentUser
 ) {
-  const existing = await getIssueById(id);
+  const client = await pool.connect();
+  try{
+  const existing = await getIssueById(client,id);
+  const effectiveIssueType =
+  issueType !== undefined
+    ? validateIssueType(issueType)
+    : existing.issue_type;
+
+const effectiveParentIssueId =
+  parentIssueId !== undefined
+    ? parentIssueId
+    : existing.parent_issue_id;
 
   const oldStatus = existing.status;
 
@@ -457,91 +397,56 @@ async function updateIssue(
 // Validate Assignee belongs to Project
 // ==========================================
 
-if (
-
-  assignedTo !== undefined &&
-
-  assignedTo !== null
-
-) {
-
-  await ensureProjectMember(
-
-    existing.project_id,
-
-    assignedTo
-
-  );
-
-}
-
-  const updated = await pool.query(
+if (assignedTo !== undefined &&assignedTo !== null)
+   {
+  await ensureProjectMember(client,existing.project_id,assignedTo);
+   }
+await validateIssueHierarchy(
+  client,
+  existing.project_id,
+  effectiveIssueType,
+  effectiveParentIssueId
+);
+  const updated = await client.query(
     `UPDATE issues SET
 
 title = $1,
-
 issue_type = $2,
-
 description = $3,
-
 status = $4,
-
 priority = $5,
-
 start_date = $6,
-
 due_date = $7,
-
 labels = $8,
-
 assigned_to = $9,
-
-updated_by = $10,
-
-updated_at = $11
-
-WHERE id = $12
-
+parent_issue_id = $10,
+updated_by = $11,
+updated_at = $12
+WHERE id = $13
 RETURNING *`,
     [
     
   title !== undefined
     ? validateTitle(title)
     : existing.title,
-
-  issueType !== undefined
-    ? validateIssueType(issueType)
-    : existing.issue_type,
-
+  effectiveIssueType,
   description !== undefined
     ? description
     : existing.description,
-
   nextStatus,
-
   priority !== undefined
     ? validatePriority(priority)
     : existing.priority,
 
-  startDate !== undefined
-    ? startDate
-    : existing.start_date,
+  startDate !== undefined ? startDate : existing.start_date,
 
-  dueDate !== undefined
-    ? validateDueDate(dueDate)
-    : existing.due_date,
+  dueDate !== undefined ? validateDueDate(dueDate) : existing.due_date,
 
-  labels !== undefined
-    ? validateLabels(labels)
-    : existing.labels,
+  labels !== undefined? validateLabels(labels): existing.labels,
 
-  assignedTo !== undefined
-    ? assignedTo === null
-      ? null
-      : validateAssignedTo(
-          assignedTo
-        )
+  assignedTo !== undefined? assignedTo === null? null: validateAssignedTo( assignedTo)
     : existing.assigned_to,
+  effectiveParentIssueId,
 
   currentUser.id,
 
@@ -557,7 +462,7 @@ RETURNING *`,
   const statusChanged = oldStatus !== updatedIssue.status;
   if (statusChanged) {
 
-  await pool.query(
+  await client.query(
     `
     INSERT INTO issue_status_history
     (
@@ -595,9 +500,16 @@ RETURNING *`,
       ? `Issue status changed from ${oldStatus} to ${updatedIssue.status}`
       : `Issue "${updatedIssue.title}" updated`,
   });
-
+await client.query("COMMIT");
   return updatedIssue;
 }
+catch (error)
+ {
+  await client.query("ROLLBACK");
+  throw error;
+} finally {
+  client.release();
+}}
 
 // ✅ Assign issue
 async function assignIssueById(id, { assignedTo }, currentUser) {
@@ -632,39 +544,75 @@ async function assignIssueById(id, { assignedTo }, currentUser) {
 }
 
 // ✅ Delete issue
-async function deleteIssue(id) {
-  const result = await pool.query(
-    "DELETE FROM issues WHERE id = $1 RETURNING *",
-    [id]
-  );
-
-  const issue = result.rows[0];
-
-  assertFound(issue, "Issue not found");
-
-  await logActivity({
-    entityType: "issue",
-    entityId: issue.id,
-    action: "issue_deleted",
-    message: `Issue "${issue.title}" deleted`,
-    userId: currentUser.id,
-  });
-
-  return issue;
+async function deleteIssue(id, currentUser) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    // Ensure the issue exists
+    const issue = await getIssueById(client, id);
+    // Validate hierarchy
+    await validateIssueDeletion(client, id);
+    // Delete issue
+    await client.query(
+      `
+      DELETE FROM issues
+      WHERE id = $1
+      `,
+      [id]
+    );
+    // Log activity
+    await logActivity({
+      entityType: "issue",
+      entityId: issue.id,
+      action: "issue_deleted",
+      userId: currentUser.id,
+      message: `Issue "${issue.title}" deleted`,
+    });
+    await client.query("COMMIT");
+    return issue;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
-
-// ✅ List issues by project
-async function listIssuesByProjectId(projectId) {
-  await ensureProjectExists(projectId);
-
-  const result = await pool.query(
-    `SELECT * FROM issues
-     WHERE project_id = $1
-     ORDER BY rank ASC NULLS LAST`,
-    [projectId]
-  );
-
-  return result.rows;
+async function getIssueDetails(id) {
+  const client = await pool.connect();
+  try {
+    // Get the issue
+    const issue = await getIssueById(client, id);
+    let parent = null;
+    // Get parent if exists
+    if (issue.parent_issue_id) {
+      const parentResult = await client.query(
+        `
+        SELECT *
+        FROM issues
+        WHERE id = $1
+        `,
+        [issue.parent_issue_id]
+      );
+      parent = parentResult.rows[0] || null;
+    }
+    // Get children
+    const childrenResult = await client.query(
+      `
+      SELECT *
+      FROM issues
+      WHERE parent_issue_id = $1
+      ORDER BY created_at ASC
+      `,
+      [issue.id]
+    );
+    return {
+      issue,
+      parent,
+      children: childrenResult.rows,
+    };
+  } finally {
+    client.release();
+  }
 }
 async function reorderIssues(
   issues,
@@ -888,10 +836,8 @@ async function getMyDashboardStats(userId) {
       result.rows[0].overdue_issues
     ),
   };
-
 }
 async function getTaskDistribution(userId) {
-
   const result = await pool.query(
     `
     SELECT
@@ -922,91 +868,246 @@ async function getTaskDistribution(userId) {
   );
 
   const row = result.rows[0];
-
-  const total =
-    Number(row.total);
-
-  const backlog =
-    Number(row.backlog);
-
-  const todo =
-    Number(row.todo);
-
-  const inProgress =
-    Number(row.in_progress);
-
-  const done =
-    Number(row.done);
+  const total =Number(row.total);
+  const backlog =Number(row.backlog);
+  const todo =Number(row.todo);
+  const inProgress =Number(row.in_progress);
+  const done =Number(row.done);
 
   return {
-
     total,
-
     backlog: {
-
       count: backlog,
-
       percentage:
         total === 0
           ? 0
           : Math.round(
               (backlog / total) * 100
             ),
-
     },
-
     todo: {
-
       count: todo,
-
       percentage:
         total === 0
           ? 0
           : Math.round(
               (todo / total) * 100
             ),
-
     },
-
     inProgress: {
-
       count: inProgress,
-
       percentage:
         total === 0
           ? 0
           : Math.round(
               (inProgress / total) * 100
             ),
-
     },
-
     done: {
-
       count: done,
-
       percentage:
         total === 0
           ? 0
           : Math.round(
               (done / total) * 100
             ),
-
     },
+  };
+}
+async function validateIssueHierarchy(
+  client,
+  projectId,
+  issueType,
+  parentIssueId
+) {
+  // Epics should never have a parent
+  if (issueType === "Epic") {
+    if (parentIssueId) {
+      throw new HttpError(
+  400,
+  "An Epic cannot have a parent issue.",
+  ERROR_CODES.VALIDATION_ERROR
+);
+    }
+    return;
+  }
 
+  // All other issue types require a parent
+  if (!parentIssueId) {
+    throw new HttpError(
+  400,
+  `${issueType} must have a parent issue.`,
+  ERROR_CODES.VALIDATION_ERROR
+);
+  }
+
+  // Fetch parent issue
+  const parentResult = await client.query(
+    `
+    SELECT id, issue_type, project_id
+    FROM issues
+    WHERE id = $1
+    `,
+    [parentIssueId]
+  );
+
+  if (parentResult.rowCount === 0) {
+    throw new HttpError(
+  404,
+  "Parent issue not found.",
+  ERROR_CODES.NOT_FOUND
+);
+  }
+
+  const parent = parentResult.rows[0];
+
+  // Parent must belong to the same project
+  if (parent.project_id !== projectId) {
+    throw new HttpError(
+  400,
+  "Parent issue must belong to the same project.",
+  ERROR_CODES.VALIDATION_ERROR
+);
+  }
+
+  // Allowed hierarchy
+  const allowedParents = {
+    Story: ["Epic"],
+    Task: ["Story"],
+    Bug: ["Story"],
+    Improvement: ["Story"]
   };
 
+  const validParents = allowedParents[issueType];
+
+  if (!validParents.includes(parent.issue_type)) {
+    throw new HttpError(
+  400,
+  `${issueType} cannot be created under ${parent.issue_type}.`,
+  ERROR_CODES.VALIDATION_ERROR
+);
+  }
+}
+async function validateIssueDeletion(client, issueId) {
+  const children = await client.query(
+    `
+    SELECT id, issue_key, title
+    FROM issues
+    WHERE parent_issue_id = $1
+    LIMIT 1
+    `,
+    [issueId]
+  );
+
+  if (children.rows.length > 0) {
+    throw new ApiError(
+  400,
+  `Cannot delete issue "${issue.title}" because it has child issues. Delete or reassign the child issues first.`
+);  }
+}
+async function getIssueDetails(id) {
+  const client = await pool.connect();
+
+  try {
+    // Get the issue
+    const issue = await getIssueById(client, id);
+
+    let parent = null;
+
+    // Get parent if exists
+    if (issue.parent_issue_id) {
+      const parentResult = await client.query(
+        `
+        SELECT *
+        FROM issues
+        WHERE id = $1
+        `,
+        [issue.parent_issue_id]
+      );
+
+      parent = parentResult.rows[0] || null;
+    }
+
+    // Get child issues
+    const childrenResult = await client.query(
+      `
+      SELECT *
+      FROM issues
+      WHERE parent_issue_id = $1
+      ORDER BY created_at ASC
+      `,
+      [issue.id]
+    );
+
+    return {
+      issue,
+      parent,
+      children: childrenResult.rows,
+    };
+  } finally {
+    client.release();
+  }
+}
+//Function to get all issues assigned to a specific user
+async function getMyIssues(userId) {
+  const client = await pool.connect();
+
+  try {
+    const {
+      query,
+      values,
+    } = buildIssueQuery({
+      assignedTo: userId,
+      sort: "updatedAt",
+      order: "desc",
+      page: 1,
+      limit: 1000,
+    });
+
+    const result = await client.query(
+      query,
+      values
+    );
+
+    return result.rows.map(issue => ({
+      id: issue.id,
+      issue_key: issue.issue_key,
+      title: issue.title,
+      issue_type: issue.issue_type,
+      status: issue.status,
+      priority: issue.priority,
+      project_id: issue.project_id,
+      project_name: issue.project_name,
+      assigned_to: issue.assigned_to,
+      start_date: issue.start_date,
+      due_date: issue.due_date,
+      created_at: issue.created_at,
+      updated_at: issue.updated_at,
+
+      parent: issue.parent_id
+        ? {
+            id: issue.parent_id,
+            issue_key: issue.parent_issue_key,
+            title: issue.parent_title,
+          }
+        : null,
+    }));
+  } finally {
+    client.release();
+  }
 }
 module.exports = {
   createIssue,
-  listIssues,
+  listProjectIssues,
   getIssueById,
   updateIssue,
   assignIssueById,
   deleteIssue,
-  listIssuesByProjectId,
+  getIssueDetails,
   reorderIssues,
   getIssueKPIs,
   getMyDashboardStats,
   getTaskDistribution,
+  getMyIssues,
+  getIssueDetails,
 };

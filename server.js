@@ -122,7 +122,7 @@ if (await handleDocsRoutes(req, res, path)) return;
 
     if (await handleAuthRoutes(req, res, path)) return;
     if (await handleUsersRoutes(req, res, path)) return;
-    if (await handleProjectsRoutes(req, res, path)) return;
+    if (await handleProjectsRoutes(req, res, path, url)) return;
     if (await handleIssuesRoutes(req, res, path, url)) return;
     if (await handleActivityRoutes(req, res, path)) return;
     if (await handleDashboardRoutes(req,res,path))return;
