@@ -294,8 +294,92 @@ RETURNING *`,
     client.release();
   }
 }
-
 // ✅ List all issues
+async function listIssues({
+  user,
+  status,
+  issueType,
+  q,
+  priority,
+  assignedTo,
+  sort = "createdAt",
+  order = "desc",
+  page = 1,
+  limit = 10,
+  view,
+}) {
+
+  const {
+    query,
+    values,
+    countQuery,
+    countValues,
+  } = buildIssueQuery({
+
+    status,
+
+    issueType,
+
+    priority,
+
+    assignedTo,
+
+    search: q,
+
+    sort,
+
+    order,
+
+    page,
+
+    limit,
+
+    view,
+
+  });
+
+  const result =
+    await pool.query(
+      query,
+      values
+    );
+
+  const countResult =
+    await pool.query(
+      countQuery,
+      countValues
+    );
+
+  const total =
+    Number(
+      countResult.rows[0].total
+    );
+
+  return {
+
+    success: true,
+
+    meta: {
+
+      page,
+
+      limit,
+
+      total,
+
+      totalPages: Math.max(
+        1,
+        Math.ceil(total / limit)
+      ),
+
+    },
+
+    data: result.rows,
+
+  };
+
+}
+// ✅ List all project issues
 async function listProjectIssues(
   projectId,
   {
@@ -1098,6 +1182,7 @@ async function getMyIssues(userId) {
 }
 module.exports = {
   createIssue,
+  listIssues,
   listProjectIssues,
   getIssueById,
   updateIssue,

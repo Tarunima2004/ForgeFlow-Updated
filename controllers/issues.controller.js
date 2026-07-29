@@ -239,7 +239,150 @@ return sendJson(
   }
 );
 }
+async function listIssues(req, res, url) {
 
+  await requireAuth(req);
+
+  requireRole(
+    req.user,
+    ["admin", "member"]
+  );
+
+  // Query params
+  const status =
+    url.searchParams.get("status");
+
+  const priority =
+    url.searchParams.get("priority");
+
+  const issueType =
+    url.searchParams.get("issueType");
+
+  const assignedTo =
+    url.searchParams.get("assignedTo");
+
+  const q =
+    url.searchParams.get("q");
+
+  const view =
+    url.searchParams.get("view");
+
+  // Sorting
+  const sort =
+    url.searchParams.get("sort") ||
+    "createdAt";
+
+  const order =
+    (
+      url.searchParams.get("order") ||
+      "desc"
+    ).toLowerCase();
+
+  // Pagination
+  const page =
+    parsePage(
+      url.searchParams.get("page")
+    );
+
+  const limit =
+    parseLimit(
+      url.searchParams.get("limit")
+    );
+
+  // Validation
+
+  if (status) {
+    assertOneOf(
+      status,
+      "status",
+      [
+        "backlog",
+        "todo",
+        "in_progress",
+        "done",
+      ]
+    );
+  }
+
+  if (priority) {
+    assertOneOf(
+      priority,
+      "priority",
+      [
+        "low",
+        "medium",
+        "high",
+        "critical",
+      ]
+    );
+  }
+
+  if (issueType) {
+    assertOneOf(
+      issueType,
+      "issueType",
+      [
+        "Epic",
+        "Story",
+        "Task",
+        "Bug",
+        "Improvement",
+      ]
+    );
+  }
+
+  assertOneOf(
+    sort,
+    "sort",
+    [
+      "createdAt",
+      "updatedAt",
+    ]
+  );
+
+  assertOneOf(
+    order,
+    "order",
+    [
+      "asc",
+      "desc",
+    ]
+  );
+
+  const result =
+    await issuesService.listIssues({
+
+      user: req.user,
+
+      status,
+
+      priority,
+
+      issueType,
+
+      assignedTo,
+
+      q,
+
+      sort,
+
+      order,
+
+      page,
+
+      limit,
+
+      view,
+
+    });
+
+  return sendJson(
+    res,
+    200,
+    result
+  );
+
+}
 async function listProjectIssues(req, res, url, projectId) {
   await requireAuth(req);
   requireRole(req.user, ["admin", "member"]);
@@ -604,6 +747,7 @@ async function getMyIssues(req, res) {
 module.exports = {
   createIssue,
   createIssueForProject,
+  listIssues,
   listProjectIssues,
   getIssueById,
   updateIssue,

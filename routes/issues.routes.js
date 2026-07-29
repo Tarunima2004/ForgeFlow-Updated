@@ -8,14 +8,20 @@ async function handleIssuesRoutes(req, res, path, url) {
   }
 
   // /issues
-  if (path === "/issues") {
-    if (req.method === "POST") {
-      await issuesController.createIssue(req, res);
-      return true;
-    }
+if (path === "/issues") {
 
-    return false;
+  if (req.method === "GET") {
+    await issuesController.listIssues(req, res, url);
+    return true;
   }
+
+  if (req.method === "POST") {
+    await issuesController.createIssue(req, res);
+    return true;
+  }
+
+  return false;
+}
 
   // /issues/:id/comments
   const commentsMatch = path.match(/^\/issues\/([^/]+)\/comments$/);

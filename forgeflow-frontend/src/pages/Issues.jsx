@@ -3,7 +3,9 @@ import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
 import {DragDropContext,Droppable,Draggable,} from "@hello-pangea/dnd";
 import api from "../api/axios";
+import IssueWorkspace from "../components/issues/IssueWorkspace";
 import {getIssues, createIssue,getIssueKPIs} from "../services/issues.service";
+import { buildHierarchyTree } from "../utils/buildHierarchyTree";
 const activityTimeline = [
   { color: "bg-blue-600", title: "Issue FF-1042 reassigned", time: "10 minutes ago by David Chen" },
   { color: "bg-emerald-500", title: "FF-1035 marked as Resolved", time: "2 hours ago by Mia Thorne" },
@@ -336,6 +338,7 @@ const priorityStyles = {
       user.name,
     ])
   );
+  console.log("All Issues:", issues);
   const filteredIssues = issues.filter((issue) => {
     const keyword = filterKeyword.toLowerCase();
     const matchesKeyword =
@@ -352,6 +355,7 @@ const priorityStyles = {
    const matchesAssignee =filterAssignee === "Everyone" ||( filterAssignee ==="Unassigned" &&!issue.assigned_to  ) ||issue.assigned_to ===filterAssignee;
     return matchesKeyword && matchesStatus && matchesPriority && matchesProject && matchesAssignee ;
   });
+  console.log("Filtered Issues:", filteredIssues);
 const backlogIssues = issues
   .filter(
     (issue) =>
@@ -391,6 +395,34 @@ backlogIssues.forEach((issue) => {
   ].push(issue);
 
 });
+const kanbanBoards = Object.entries(projectBoards).map(
+  ([projectName, board]) => ({
+
+    projectName,
+
+    columns: columnConfig.map((column) => {
+
+      const columnIssues =
+        board[column.key] || [];
+
+      return {
+
+        ...column,
+
+        issues: columnIssues,
+
+        hierarchyTree:
+          buildHierarchyTree(
+            columnIssues
+          ),
+
+      };
+
+    }),
+
+  })
+);
+console.log("Kanban Boards:", kanbanBoards);
   const handleReset = () => {
     setFilterKeyword("");
     setFilterStatus("All");
@@ -412,6 +444,7 @@ async function loadIssues() {
 setIssues(
   result.data || []
 );
+console.log("Loaded Issues:", result.data);
   } catch (err) {
     console.error(err);
   } finally {
@@ -825,334 +858,30 @@ const handleUpdateIssue =
 </button>
           </div>
 
-          {/* Table View */}
-          {view === "table" && (
-            <div className="bg-white border border-[#c5c5d7] rounded-xl overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-[#f2f4f6] border-b border-[#c5c5d7]">
-                  <tr>
-                    {["ID", "Title", "Project", "Priority", "Status", "Assignee", "Actions"].map((h) => (
-                      <th key={h} className={`px-4 py-3 text-[11px] font-semibold tracking-wider text-[#505f76] uppercase ${h === "Actions" ? "text-right" : ""}`}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#c5c5d7]">
-                  {filteredIssues.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-8 text-center text-[13px] text-[#757686]">No issues match your filters.</td>
-                    </tr>
-                  ) : (
-                    filteredIssues.map((issue) => (
-                      <tr key={issue.id} className="hover:bg-[#f7f9fb] transition-colors cursor-pointer group">
-                        <td className="px-4 py-3 font-mono text-[12px] text-[#757686]">{issue.id}</td>
-                        <td className="px-4 py-3 text-[14px] font-medium">{issue.title}</td>
-                        <td className="px-4 py-3 text-[13px] text-[#505f76]"> {projectMap[issue.project_id] || "-"}</td>
-                        <td className="px-4 py-3"><PriorityBadge priority={issue.priority} /></td>
-                        <td className="px-4 py-3"><StatusBadge status={issue.status} /></td>
-                        <td className="px-4 py-3">
-                        {issue.assigned_to
-                        ? userMap[
-                        issue.assigned_to
-                       ] || "Unknown User"
-                        : "Unassigned"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                          <button className="p-1 hover:bg-[#eceef0] rounded transition-colors text-[#757686] group-hover:text-[#2036bd]">
-                            <span className="material-symbols-outlined text-[20px]">more_vert</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-              <div className="p-4 border-t border-[#c5c5d7] flex justify-between items-center bg-white">
-                <span className="text-[13px] text-[#505f76]">Showing {filteredIssues.length} of {issues.length} issues</span>
-                <div className="flex gap-2">
-                  <button className="p-1.5 border border-[#c5c5d7] rounded hover:bg-[#f2f4f6] transition-colors opacity-50 cursor-not-allowed" disabled>
-                    <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-                  </button>
-                  <button className="p-1.5 border border-[#c5c5d7] rounded hover:bg-[#f2f4f6] transition-colors">
-                    <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <IssueWorkspace
+    view={view}
+    issues={filteredIssues}
+    loading={loading}
+    projects={projects}
+    users={users}
+    projectMap={projectMap}
+    userMap={userMap}
 
-          {/* Kanban View */}
-          {view === "kanban" && (
-  <DragDropContext onDragEnd={onDragEnd}>
-	{!selectedProject && (
+    kanbanColumns={kanbanBoards}
+    backlogItems={backlogProjects}
 
-  <div
-    className="
-      grid
-      grid-cols-1
-      md:grid-cols-2
-      lg:grid-cols-3
-      gap-6
-    "
-  >
+    selectedProject={selectedProject}
+    setSelectedProject={setSelectedProject}
 
-    {Object.keys(projectBoards).map(
-      (projectName) => (
+    onDragEnd={onDragEnd}
+    onBacklogDragEnd={onBacklogDragEnd}
 
-        <div
-          key={projectName}
-          onClick={() =>
-            setSelectedProject(
-              projectName
-            )
-          }
-          className="
-            bg-white
-            border
-            border-[#c5c5d7]
-            rounded-xl
-            p-6
-            cursor-pointer
-            hover:shadow-lg
-            transition
-          "
-        >
+    openEditModal={openEditModal}
 
-          <h3
-            className="
-              text-xl
-              font-bold
-            "
-          >
-            {projectName}
-          </h3>
-
-          <p
-            className="
-              text-gray-500
-              mt-2
-            "
-          >
-            Open Kanban Board
-          </p>
-
-        </div>
-
-      )
-    )}
-
-  </div>
-
-)}
-{selectedProject && (
-<>
-<button
-  onClick={() =>
-    setSelectedProject(null)
-  }
-  className="
-    mb-4
-    px-4
-    py-2
-    border
-    rounded-lg
-  "
->
-  ← Back
-</button>
-   {Object.entries(projectBoards)
-  .filter(
-    ([projectName]) =>
-      projectName === selectedProject
-  )
-  .map(
-    ([projectName, columns]) => (
-        <div
-          key={projectName}
-          className="mb-12"
-        >
-
-          <div className="mb-4">
-            <h2 className="text-2xl font-bold">
-              {projectName}
-            </h2>
-          </div>
-
-          <div
-            className="
-              grid
-              grid-cols-1
-              md:grid-cols-2
-              lg:grid-cols-4
-              gap-4
-            "
-          > 
-             {columnConfig.map((col) => {
-  const cards =projectBoards[selectedProject]?.[col.key] || [];;
-  return (
-    <Droppable
-      droppableId={`${projectName}-${col.key}`}
-      key={col.key}
-    >
-      {(provided) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.droppableProps}
-          className="flex flex-col gap-3"
-        >
-          <div className="flex items-center justify-between px-2 mb-1">
-            <h4 className="text-[12px] font-bold uppercase text-[#505f76]">
-              {col.title}
-
-<span
-  className="
-    text-[10px]
-    ml-2
-    text-gray-500
-  "
->
-  ({cards.length}/
-  {wipLimits[col.key] === Infinity
-    ? "∞"
-    : wipLimits[col.key]})
-</span>
-              <span
-                className={`ml-2 px-1.5 py-0.5 rounded text-xs ${col.countClass}`}
-              >
-                {cards.length}
-              </span>
-            </h4>
-
-            <button className="p-1 hover:bg-[#eceef0] rounded transition-colors">
-              <span className="material-symbols-outlined text-[20px]">
-                add
-              </span>
-            </button>
-          </div>
-
-          <div className="flex flex-col gap-3 min-h-64">
-            {cards.length === 0 && (
-              <div className="text-sm text-gray-400 text-center py-8">
-                No issues
-              </div>
-            )}
-
-            {cards.map((card, index) => (
-  <Draggable
-    key={card.id}
-    draggableId={card.id}
-    index={index}
-  >
-    {(provided) => (
-      <div
-  ref={provided.innerRef}
-  {...provided.draggableProps}
-  {...provided.dragHandleProps}
-  onDoubleClick={() =>{
-    openEditModal(card)
-  }}
-  className="
-    p-3
-    rounded-xl
-    border
-    border-[#c5c5d7]
-    bg-white
-    cursor-pointer
-  "
->
-                <p className="text-xs font-mono text-gray-500">
-                  FF-{card.id.slice(0, 4)}
-                </p>
-
-                <h5 className="font-medium mt-2">
-                  {card.title}
-                </h5>
-
-                <div className="mt-2">
-                  <span
-                    className={`
-                      text-xs
-                      px-2
-                      py-1
-                      rounded
-                      ${priorityStyles[card.priority]}
-                    `}
-                  >
-                    {card.priority}
-                  </span>
-                </div>
-              </div>
-)}
-</Draggable>
-))}
-                       {provided.placeholder}
-          </div>
-        </div>
-      )}
-    </Droppable>
-  );
-})}
-        </div>
-      </div>
-    ))}
-</>
-)}
-
-  </DragDropContext>
-)}
-{view === "backlog" && (
-  <DragDropContext onDragEnd={onBacklogDragEnd}>
-    <div className="bg-white border border-[#c5c5d7] rounded-xl p-4">
-      <h3 className="text-lg font-semibold mb-4">Backlog</h3>
-
-      {backlogIssues.length === 0 ? (
-        <div className="text-center text-gray-500 py-10">No backlog issues</div>
-      ) : (
-        <div className="space-y-3">
-          {Object.entries(backlogProjects).map(([projectName, issues]) => (
-            <div key={projectName} className="mb-8">
-              <div className="mb-4">
-                <h3 className="text-lg font-bold">{projectName}</h3>
-                <p className="text-sm text-gray-500">{issues.length} backlog issue(s)</p>
-              </div>
-
-              <Droppable droppableId={`backlog-${projectName}`}>
-                {(provided) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
-                    {issues.map((issue, index) => (
-                      <Draggable key={issue.id} draggableId={issue.id} index={index}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            onDoubleClick={() => openEditModal(issue)}
-                            className="bg-white border rounded-xl p-4 cursor-move"
-                          >
-                            <div className="flex justify-between">
-                              <div>
-                                <h4 className="font-semibold">{issue.title}</h4>
-                                <p className="text-xs text-gray-500">Rank #{issue.rank}</p>
-                              </div>
-                              <span className={`px-2 py-1 rounded text-xs ${priorityStyles[issue.priority]}`}>{issue.priority}</span>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  </DragDropContext>
-)}
-        </div>
+    priorityStyles={priorityStyles}
+    columnConfig={columnConfig}
+    wipLimits={wipLimits}
+/>
         {/* Right Sidebar */}
         <aside className="w-80 bg-white border-l border-[#c5c5d7] p-4 flex flex-col gap-6 overflow-y-auto min-h-screen">
           {/* Issue Insights */}
@@ -1553,6 +1282,7 @@ const handleUpdateIssue =
     </div>
   </div>
 )}
+</div>
       </main>
     </div>
   </div>
