@@ -40,7 +40,6 @@ if (path === "/issues") {
 
     return false;
   }
-
   // /issues/:id/activity
   const activityMatch = path.match(/^\/issues\/([^/]+)\/activity$/);
   if (activityMatch) {

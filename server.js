@@ -20,6 +20,7 @@ const {handleProjectMembersRoutes,} = require("./routes/projectMembers.routes");
 const {handleInvitationRoutes,} = require("./routes/invitations.routes");
 const {handleEmailOtpRoutes,} = require("./routes/emailOtp.routes");
 const {handleConfigRoutes,} = require("./routes/config.routes");
+const {handleCommentsRoutes,} = require("./routes/comments.routes");
 const PORT = process.env.PORT || 3000;
 
 function sendError(res, err) {
@@ -124,6 +125,7 @@ if (await handleDocsRoutes(req, res, path)) return;
     if (await handleUsersRoutes(req, res, path)) return;
     if (await handleProjectsRoutes(req, res, path, url)) return;
     if (await handleIssuesRoutes(req, res, path, url)) return;
+    if (await handleCommentsRoutes(req, res, path)) return;
     if (await handleActivityRoutes(req, res, path)) return;
     if (await handleDashboardRoutes(req,res,path))return;
     if (await handleEmailOtpRoutes( req, res,path)) {

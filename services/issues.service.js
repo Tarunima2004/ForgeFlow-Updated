@@ -438,19 +438,26 @@ async function listProjectIssues(
   };
 }
 // ✅ Get issue by id
-async function getIssueById(client, id) {
+async function getIssueById(clientOrId, maybeId) {
+
+  const client =
+    maybeId ? clientOrId : pool;
+
+  const id =
+    maybeId ?? clientOrId;
+
   const result = await client.query(
-    "SELECT * FROM issues WHERE id = $1",
+    `
+    SELECT *
+    FROM issues
+    WHERE id = $1
+    `,
     [id]
   );
-
   const issue = result.rows[0];
-
   assertFound(issue, "Issue not found");
-
   return issue;
 }
-
 // ✅ Update issue
 async function updateIssue(
   id,
