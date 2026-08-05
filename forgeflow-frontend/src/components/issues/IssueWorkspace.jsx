@@ -1,10 +1,12 @@
 import { buildHierarchyTree } from "../../utils/buildHierarchyTree";
-import React from "react";
-import { useMemo } from "react";
-
-// ==================================================
-// SHARED HELPERS
-// ==================================================
+import CommentDrawer from "./CommentDrawer";
+import React, { useMemo, useState } from "react";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+} from "@hello-pangea/dnd";
+import { getIssueComments ,createComment,updateComment,deleteComment} from "../../services/comments.service";
 
 const Icon = ({ name, className = "", filled = false, style = {} }) => (
   <span
@@ -91,7 +93,8 @@ export default function IssueWorkspace({
 
   expandedIssues = new Set(),
   toggleExpand = () => {},
-
+  onDragEnd = () => {},
+onBacklogDragEnd = () => {},
   onIssueClick = () => {},
   onStatusChange = () => {},
   onAddChild = () => {},
@@ -110,7 +113,138 @@ export default function IssueWorkspace({
     () => buildHierarchyTree(issues),
     [issues]
 );
-  // ==================================================
+const [commentDrawerOpen, setCommentDrawerOpen] = useState(false);
+const [selectedIssue, setSelectedIssue] = useState(null);
+const [comments, setComments] = useState([]);
+const [commentsLoading, setCommentsLoading] = useState(false);
+const [editingCommentId, setEditingCommentId] =useState(null);
+const [editingContent, setEditingContent] =useState("");
+const [replyingToCommentId, setReplyingToCommentId] =useState(null);
+const [replyContent, setReplyContent] = useState("");
+const handleReplySubmit = async () => {
+
+    if (!replyContent.trim()) return;
+
+    await createComment(
+        selectedIssue.id,
+        {
+            content: replyContent,
+            parentCommentId: replyingToCommentId,
+        }
+    );
+
+    await loadComments(selectedIssue.id);
+
+    setReplyContent("");
+
+    setReplyingToCommentId(null);
+
+};
+const handleEditComment = (comment) => {
+
+    setEditingCommentId(comment.id);
+
+    setEditingContent(comment.content);
+
+};
+const handleReplyComment = (
+    commentId
+) => {
+
+    setReplyingToCommentId(commentId);
+
+};
+const handleSaveComment = async () => {
+
+    await updateComment(
+        editingCommentId,
+        {
+            content: editingContent
+        }
+    );
+
+    await loadComments(selectedIssue.id);
+
+    setEditingCommentId(null);
+
+    setEditingContent("");
+
+};
+const handleDeleteComment = async (commentId) => {
+
+    await deleteComment(commentId);
+
+    await loadComments(selectedIssue.id);
+
+};
+const handleOpenComments = async (issue) => {
+
+    setSelectedIssue(issue);
+
+    setCommentDrawerOpen(true);
+
+    setCommentsLoading(true);
+
+    try {
+            await loadComments(issue.id);
+
+    } catch (error) {
+
+        console.error(
+            "Failed to load comments",
+            error
+        );
+
+    } finally {
+
+        setCommentsLoading(false);
+
+    }
+
+};
+const handleAddComment = async (content) => {
+
+    if (!content.trim()) return;
+
+    await createComment(
+        selectedIssue.id,
+        {
+            content,
+            parentCommentId:
+            replyingToCommentId
+        }
+    );
+
+    await loadComments(selectedIssue.id);
+    setReplyingToCommentId(null);
+}; 
+const loadComments = async (issueId) => {
+
+    setCommentsLoading(true);
+
+    try {
+
+        const issueComments =
+            await getIssueComments(issueId);
+
+        setComments(issueComments);
+
+        return issueComments;
+
+    } catch (error) {
+
+        console.error(error);
+
+        setComments([]);
+
+    } finally {
+
+        setCommentsLoading(false);
+
+    }
+
+};
+ // ==================================================
   // TOOLBAR
   // ==================================================
   function renderToolbar() {
@@ -331,9 +465,16 @@ export default function IssueWorkspace({
               onClick={(e) => e.stopPropagation()}
               className="opacity-0 group-hover:opacity-100 flex items-center justify-end space-x-1"
             >
-              <button className="p-1 hover:bg-white rounded shadow-sm text-primary" title="Comment">
-                <Icon name="chat_bubble" className="!text-lg" />
-              </button>
+              <button
+    onClick={() => handleOpenComments(node)}
+    className="p-1 hover:bg-white rounded shadow-sm text-primary"
+    title="Comments"
+>
+    <Icon
+        name="chat_bubble"
+        className="!text-lg"
+    />
+</button>
               <button className="p-1 hover:bg-white rounded shadow-sm text-slate-600" title="More">
                 <Icon name="more_vert" className="!text-lg" />
               </button>
@@ -438,7 +579,17 @@ export default function IssueWorkspace({
           </div>
           <div className="flex items-center space-x-2 text-slate-600">
             <Icon name="attachment" className="!text-base" />
-            <Icon name="chat_bubble_outline" className="!text-base" />
+            <button
+    onClick={(e) => {
+        e.stopPropagation();
+        handleOpenComments(card);
+    }}
+>
+    <Icon
+        name="chat_bubble_outline"
+        className="!text-base"
+    />
+</button>
           </div>
         </div>
       </div>
@@ -463,7 +614,9 @@ function renderKanban() {
   }
 
   return (
-
+<DragDropContext
+    onDragEnd={onDragEnd}
+>
     <div className="space-y-10">
 
       {kanbanColumns.map((project) => (
@@ -489,73 +642,94 @@ function renderKanban() {
 
           <div className="flex p-6 space-x-6 bg-slate-50 overflow-x-auto">
 
-            {project.columns.map((column) => (
+           {project.columns.map((column) => (
 
-              <div
-                key={column.key}
-                className="kanban-column flex flex-col"
-              >
+  <Droppable
+    key={column.key}
+    droppableId={`${project.projectName}-${column.key}`}
+  >
+    {(provided) => (
 
-                {/* Column Header */}
+      <div
+        ref={provided.innerRef}
+        {...provided.droppableProps}
+        className="kanban-column flex flex-col"
+      >
 
-                <div className="flex items-center justify-between px-3 py-2 mb-2">
+        {/* Column Header */}
 
-                  <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between px-3 py-2 mb-2">
 
-                    <h3 className="text-xs uppercase tracking-widest text-slate-600 font-bold">
+          <div className="flex items-center space-x-2">
 
-                      {column.title}
+            <h3 className="text-xs uppercase tracking-widest text-slate-600 font-bold">
+              {column.title}
+            </h3>
 
-                    </h3>
+            <span
+              className={`px-2 py-0.5 rounded text-xs font-bold ${column.countClass}`}
+            >
+              {column.issues.length}
+            </span>
 
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-bold ${column.countClass}`}
-                    >
+          </div>
 
-                      {column.issues.length}
+          <button
+            onClick={() => onAddChild(null, column.key)}
+            className="text-slate-600 hover:text-primary"
+          >
+            <Icon name="add" />
+          </button>
 
-                    </span>
+        </div>
 
-                  </div>
+        {/* Cards */}
 
-                  <button
-                    onClick={() =>
-                      onAddChild(null, column.key)
-                    }
-                    className="text-slate-600 hover:text-primary"
-                  >
-                    <Icon name="add" />
-                  </button>
+        <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1 pb-lg">
 
-                </div>
+          {column.issues.length > 0 ? (
 
-                {/* Cards */}
+            column.issues.map((card, index) => (
 
-                <div className="flex-1 space-y-4 overflow-y-auto custom-scrollbar pr-1 pb-lg">
+  <Draggable
+    key={card.id}
+    draggableId={card.id}
+    index={index}
+  >
+    {(provided, snapshot) => (
 
-                  {column.issues.length > 0 ? (
+      <div
+        ref={provided.innerRef}
+        {...provided.draggableProps}
+        {...provided.dragHandleProps}
+      >
+        {renderKanbanCard(card)}
+      </div>
 
-                    column.issues.map((card) =>
+    )}
+  </Draggable>
 
-                      renderKanbanCard(card)
+))
 
-                    )
+          ) : (
 
-                  ) : (
+            <div className="text-[11px] text-slate-600 px-2 py-4 text-center">
+              No issues
+            </div>
 
-                    <div className="text-[11px] text-slate-600 px-2 py-4 text-center">
+          )}
 
-                      No issues
+          {provided.placeholder}
 
-                    </div>
+        </div>
 
-                  )}
+      </div>
 
-                </div>
+    )}
+  </Droppable>
 
-              </div>
+))}
 
-            ))}
 
           </div>
 
@@ -564,6 +738,9 @@ function renderKanban() {
       ))}
 
     </div>
+
+
+</DragDropContext>
   );
 }
 
@@ -719,15 +896,68 @@ function renderKanban() {
   // ROOT RENDER
   // ==================================================
   return (
+<>
     <div className="w-full bg-white rounded-xl border border-slate-200 overflow-hidden">
-      {renderToolbar()}
-      <div className="w-full">
-        <div className="overflow-auto">
-          {view === "table" && renderExplorer()}
-          {view === "kanban" && renderKanban()}
-          {view === "backlog" && renderBacklog()}
+
+        {renderToolbar()}
+
+        <div className="w-full">
+
+            <div className="overflow-auto">
+
+                {view === "table" && renderExplorer()}
+                {view === "kanban" && renderKanban()}
+                {view === "backlog" && renderBacklog()}
+
+            </div>
+
         </div>
-      </div>
+
     </div>
-  );
+  <CommentDrawer
+    open={commentDrawerOpen}
+    onClose={() => setCommentDrawerOpen(false)}
+
+    issue={selectedIssue}
+
+    comments={comments}
+
+    loading={commentsLoading}
+
+    onAddComment={handleAddComment}
+
+    onReply={handleReplyComment}
+
+    onEdit={handleEditComment}
+
+    onDelete={handleDeleteComment}
+
+    editingCommentId={editingCommentId}
+
+    editingContent={editingContent}
+
+    setEditingContent={setEditingContent}
+
+    onSaveComment={handleSaveComment}
+
+    onCancelEdit={() => {
+        setEditingCommentId(null);
+        setEditingContent("");
+    }}
+
+    replyingToCommentId={replyingToCommentId}
+
+    replyContent={replyContent}
+
+    setReplyContent={setReplyContent}
+
+    onSubmitReply={handleReplySubmit}
+
+    onCancelReply={() => {
+        setReplyingToCommentId(null);
+        setReplyContent("");
+    }}
+/>
+</>
+);
 }

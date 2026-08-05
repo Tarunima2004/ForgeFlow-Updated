@@ -68,6 +68,7 @@ export default function IssuesManagement() {
   const [showEditModal, setShowEditModal] =useState(false);
   const [editingIssue, setEditingIssue] =useState(null);
   const [selectedProject,setSelectedProject] = useState(null);
+  const [expandedIssues, setExpandedIssues] = useState(new Set());
   const [newIssue, setNewIssue] =
   useState({
     title: "",
@@ -76,6 +77,41 @@ export default function IssuesManagement() {
     dueDate: "",
     assignedTo: "",
   });
+  const toggleExpand = (issueId) => {
+    setExpandedIssues((prev) => {
+        const next = new Set(prev);
+
+        if (next.has(issueId)) {
+            next.delete(issueId);
+        } else {
+            next.add(issueId);
+        }
+
+        return next;
+    });
+};
+const onExpandAll = () => {
+    const ids = new Set();
+
+    const collect = (issues) => {
+        issues.forEach((issue) => {
+            if (issue.hasChildren) {
+                ids.add(issue.id);
+            }
+
+            if (issue.children?.length) {
+                collect(issue.children);
+            }
+        });
+    };
+
+    collect(buildHierarchyTree(filteredIssues));
+
+    setExpandedIssues(ids);
+};
+const onCollapseAll = () => {
+    setExpandedIssues(new Set());
+};
   const [issueKPIs, setIssueKPIs] =
   useState({
     totalIssues: 0,
@@ -338,7 +374,6 @@ const priorityStyles = {
       user.name,
     ])
   );
-  console.log("All Issues:", issues);
   const filteredIssues = issues.filter((issue) => {
     const keyword = filterKeyword.toLowerCase();
     const matchesKeyword =
@@ -355,7 +390,6 @@ const priorityStyles = {
    const matchesAssignee =filterAssignee === "Everyone" ||( filterAssignee ==="Unassigned" &&!issue.assigned_to  ) ||issue.assigned_to ===filterAssignee;
     return matchesKeyword && matchesStatus && matchesPriority && matchesProject && matchesAssignee ;
   });
-  console.log("Filtered Issues:", filteredIssues);
 const backlogIssues = issues
   .filter(
     (issue) =>
@@ -422,7 +456,6 @@ const kanbanBoards = Object.entries(projectBoards).map(
 
   })
 );
-console.log("Kanban Boards:", kanbanBoards);
   const handleReset = () => {
     setFilterKeyword("");
     setFilterStatus("All");
@@ -444,7 +477,6 @@ async function loadIssues() {
 setIssues(
   result.data || []
 );
-console.log("Loaded Issues:", result.data);
   } catch (err) {
     console.error(err);
   } finally {
@@ -862,6 +894,10 @@ const handleUpdateIssue =
     view={view}
     issues={filteredIssues}
     loading={loading}
+    expandedIssues={expandedIssues}
+    toggleExpand={toggleExpand}
+    onExpandAll={onExpandAll}
+    onCollapseAll={onCollapseAll}
     projects={projects}
     users={users}
     projectMap={projectMap}
