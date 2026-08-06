@@ -12,6 +12,8 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import Sidebar from "../components/dashboard/Sidebar";
+import Navbar from "../components/dashboard/Navbar";
 
 // =========================================================
 // Hardcoded data, shaped so it can be swapped for API
@@ -385,141 +387,16 @@ function getActivityColor(action) {
 }
   return (
     <div className="bg-slate-50 text-slate-900">
-      {/* Top Navigation Bar */}
-      <header className="bg-slate-50 border-b border-slate-200 shadow-sm sticky top-0 z-50">
-        <div className="flex justify-between items-center w-full px-8 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-8">
-            <span className="text-2xl font-semibold leading-8 tracking-tight font-bold text-blue-600">
-              ForgeFlow
-            </span>
-            <div
-              className={`hidden md:flex items-center bg-slate-100 border rounded-lg px-3 py-1.5 w-64 ${
-                isSearchFocused
-                  ? "border-blue-600 ring-2 ring-blue-600/20"
-                  : "border-slate-200"
-              }`}
-            >
-              <span className="material-symbols-outlined text-slate-500 text-[20px] mr-2">
-                search
-              </span>
-              <input
-                className="bg-transparent border-none focus:ring-0 text-[13px] leading-[18px] w-full"
-                placeholder="Search projects..."
-                type="text"
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="bg-blue-600 text-white text-xs leading-4 font-semibold tracking-wider px-4 py-2 rounded-lg hover:brightness-110 transition-all scale-95 duration-100 ease-in-out active:scale-90">
-              Create Issue
-            </button>
-            <button className="text-slate-500 hover:bg-slate-200 transition-colors p-2 rounded-full">
-              <span className="material-symbols-outlined">notifications</span>
-            </button>
-            <button className="text-slate-500 hover:bg-slate-200 transition-colors p-2 rounded-full">
-              <span className="material-symbols-outlined">settings</span>
-            </button>
-            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-xs border-2 border-white shadow-sm overflow-hidden">
-              <img
-                className="w-full h-full object-cover"
-                alt="Current user avatar"
-                src={project.currentUserAvatar}
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex max-w-7xl mx-auto">
+      <Navbar />
+      <div className="flex">
         {/* Sidebar Navigation */}
-        <aside className="hidden md:flex flex-col h-[calc(100vh-72px)] py-8 w-64 sticky top-[72px] border-r border-slate-200 bg-slate-100">
-          <div className="px-6 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
-                <span className="material-symbols-outlined">
-                  {project.icon}
-                </span>
-              </div>
-              <div>
-                <h2 className="text-lg font-semibold leading-[26px] font-extrabold text-slate-900">
-                  {projectData?.project_name}
-                </h2>
-                <p className="text-[11px] leading-[14px] font-medium text-slate-500">
-                  {projectData?.project_code}
-                </p>
-              </div>
-            </div>
-          </div>
-          <nav className="flex-1 px-2 space-y-1">
-            <a
-              className="flex items-center gap-3 bg-slate-200 text-slate-600 border-l-4 border-blue-600 rounded-r-lg px-4 py-3 text-xs leading-4 font-semibold tracking-wider transition-all translate-x-1"
-              href="#"
-            >
-              <span
-                className="material-symbols-outlined"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                dashboard
-              </span>
-              <span>Overview</span>
-            </a>
-            <a
-              className="flex items-center gap-3 text-slate-500 px-4 py-3 text-xs leading-4 font-semibold tracking-wider hover:bg-slate-200 transition-all"
-              href="#"
-            >
-              <span className="material-symbols-outlined">list_alt</span>
-              <span>Issues</span>
-            </a>
-            <a
-              className="flex items-center gap-3 text-slate-500 px-4 py-3 text-xs leading-4 font-semibold tracking-wider hover:bg-slate-200 transition-all"
-              href="#"
-            >
-              <span className="material-symbols-outlined">view_kanban</span>
-              <span>Board</span>
-            </a>
-            <a
-              className="flex items-center gap-3 text-slate-500 px-4 py-3 text-xs leading-4 font-semibold tracking-wider hover:bg-slate-200 transition-all"
-              href="#"
-            >
-              <span className="material-symbols-outlined">event_note</span>
-              <span>Timeline</span>
-            </a>
-            <a
-              className="flex items-center gap-3 text-slate-500 px-4 py-3 text-xs leading-4 font-semibold tracking-wider hover:bg-slate-200 transition-all"
-              href="#"
-            >
-              <span className="material-symbols-outlined">history</span>
-              <span>Activity</span>
-            </a>
-            <a
-              className="flex items-center gap-3 text-slate-500 px-4 py-3 text-xs leading-4 font-semibold tracking-wider hover:bg-slate-200 transition-all"
-              href="#"
-            >
-              <span className="material-symbols-outlined">folder_open</span>
-              <span>Files</span>
-            </a>
-            <a
-              className="flex items-center gap-3 text-slate-500 px-4 py-3 text-xs leading-4 font-semibold tracking-wider hover:bg-slate-200 transition-all"
-              href="#"
-            >
-              <span className="material-symbols-outlined">insert_chart</span>
-              <span>Analytics</span>
-            </a>
-          </nav>
-          <div className="px-4 mt-auto">
-            <button className="w-full bg-slate-50 border border-slate-200 text-blue-600 text-xs leading-4 font-semibold tracking-wider py-2.5 rounded-lg hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">
-                add
-              </span>
-              Create Issue
-            </button>
-          </div>
-        </aside>
+<Sidebar
+    role="manager"
+    projectId={projectId}
+/>
 
         {/* Main Content Area */}
-        <main className="flex-1 p-8 overflow-y-auto">
+        <main className="flex-1 ml-64 p-8 overflow-y-auto">
           {/* Page Header Actions */}
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
             <div>

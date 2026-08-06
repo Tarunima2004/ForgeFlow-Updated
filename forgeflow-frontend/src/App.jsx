@@ -1,9 +1,4 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from "react-router-dom";
-
+import {BrowserRouter,Routes,Route,} from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -18,6 +13,7 @@ import ProjectWorkspace from "./pages/ProjectWorkspace";
 import UserDashboard from "./pages/UserDashboard";
 import ProjectWorkspaceManager from "./pages/ProjectWorkspaceManager";
 import ProjectWorkspaceMember from "./pages/ProjectWorkspaceMember";
+import ManagerIssues from "./pages/ManagerIssues";
 
 function App() {
   return (
@@ -56,6 +52,14 @@ function App() {
   element={
     <ProtectedRoute>
       <ProjectWorkspaceManager />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/manager-workspace/:projectId/issues"
+  element={
+    <ProtectedRoute>
+      <ManagerIssues />
     </ProtectedRoute>
   }
 />
