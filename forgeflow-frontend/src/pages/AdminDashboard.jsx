@@ -6,7 +6,7 @@ import Sidebar from "../components/dashboard/Sidebar";
 import Navbar from "../components/dashboard/Navbar";
 import { getDashboardStats } from "../services/dashboard.service";
 import {getProjects,createProject,updateProject,archiveProject, getProjectMembers,} from "../services/projects.service";
-import { createIssue } from "../services/issues.service";
+import {createIssue,getIssues,} from "../services/issues.service";
 import { getUsers , getJobRoles,} from "../services/users.service";
 import {getRecentActivity} from "../services/activity.service";
 import {getIssuesByStatus,getIssuesByPriority,} from "../services/dashboard.service";
@@ -332,9 +332,9 @@ export default function AdminDashboard() {
   const [issueTitle, setIssueTitle] =useState("");
   const [selectedIssueProject, setSelectedIssueProject] =useState("");
   const [issueType, setIssueType] =useState("Task");
+  const parentLabel =issueType === "Story"? "Select Epic": "Select Story";
   const [issueDescription, setIssueDescription] =useState("");
   const [issuePriority, setIssuePriority] =useState("medium");
-  const [issueStatus, setIssueStatus] =useState("backlog");
   const [assignedUser, setAssignedUser] =useState("");
   const [startDateIssue, setStartDateIssue] =useState("");
   const [dueDate, setDueDate] =useState("");
@@ -348,6 +348,8 @@ export default function AdminDashboard() {
   const [selectedProject,setSelectedProject] =useState(null);
   const [departments, setDepartments] = useState([]);
   const [jobRoles, setJobRoles] = useState({});
+  const [parentIssue, setParentIssue] = useState("");
+  const [availableParents, setAvailableParents] = useState([]);
   const fetchProjects = async () => {
   try {
   const response = await getProjects();
@@ -712,7 +714,73 @@ const fetchIssuesByPriority =
 
     }
 };
+const loadParentIssues = async (
+  projectId,
+  issueType
+) => {
 
+  // Nothing selected yet
+  if (!projectId || !issueType) {
+
+    setAvailableParents([]);
+    setParentIssue("");
+
+    return;
+
+  }
+
+  let parentType = null;
+
+  switch (issueType) {
+
+    case "Story":
+      parentType = "Epic";
+      break;
+
+    case "Task":
+    case "Bug":
+    case "Improvement":
+      parentType = "Story";
+      break;
+
+    case "Epic":
+    default:
+      setAvailableParents([]);
+      setParentIssue("");
+      return;
+
+  }
+
+  try {
+
+    const response = await getIssues({
+
+      projectId,
+
+      issueType: parentType,
+
+      page: 1,
+
+      limit: 100,
+
+    });
+
+    setAvailableParents(response.data);
+
+  }
+
+  catch (error) {
+
+    console.error(
+      "Load Parent Issues Error:",
+      error
+    );
+
+    setAvailableParents([]);
+
+  }
+
+};
 useEffect(() => { 
   fetchDashboardStats();
   fetchProjects();
@@ -1023,6 +1091,12 @@ const handleArchiveProject = async (
   }
 
 };
+console.log({
+    title: issueTitle,
+    projectId: selectedIssueProject,
+    issueType,
+    parentIssue,
+});
 const handleCreateIssue =
   async () => {
     try {
@@ -1039,7 +1113,7 @@ const handleCreateIssue =
 
   priority: issuePriority,
 
-  status: issueStatus,
+  parentIssueId:parentIssue || null,
 
   assignedTo: assignedUser || undefined,
 
@@ -1060,6 +1134,8 @@ const handleCreateIssue =
       await fetchIssuesByPriority();
       setIssueTitle("");
       setSelectedIssueProject("");
+      setParentIssue("");
+      setAvailableParents([]);
       setIssuePriority("medium");
 
       setShowCreateIssueModal(false);
@@ -2124,6 +2200,8 @@ projectMode === "create"
 
       await loadProjectMembers(value);
 
+      await loadParentIssues(value,issueType);
+
     }}
     className="w-full border rounded-lg p-3"
   >
@@ -2154,7 +2232,18 @@ projectMode === "create"
 
   <select
     value={issueType}
-    onChange={(e) => setIssueType(e.target.value)}
+    onChange={async (e) => {
+
+    const value = e.target.value;
+
+    setIssueType(value);
+
+    await loadParentIssues(
+        selectedIssueProject,
+        value
+    );
+
+}}
     className="w-full border rounded-lg p-3"
   >
 
@@ -2171,6 +2260,53 @@ projectMode === "create"
   </select>
 
 </div>
+{issueType !== "Epic" && (
+
+<div className="mb-4">
+
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+
+    {parentLabel}
+
+  </label>
+
+  <select
+
+    value={parentIssue}
+
+    onChange={(e) =>
+      setParentIssue(e.target.value)
+    }
+
+    className="w-full border rounded-lg p-3"
+
+  >
+
+    <option value="">
+      Select Parent
+    </option>
+
+    {availableParents.map((issue) => (
+
+      <option
+
+        key={issue.id}
+
+        value={issue.id}
+
+      >
+
+        {issue.issue_key} • {issue.title}
+
+      </option>
+
+    ))}
+
+  </select>
+
+</div>
+
+)}
 <div className="mb-4">
 
   <label className="block mb-2 text-sm font-semibold text-[#454654]">
@@ -2188,26 +2324,6 @@ projectMode === "create"
 </div>
 
 <div className="mb-4">
-
-  <label className="block mb-2 text-sm font-semibold text-[#454654]">
-    Status
-  </label>
-
-  <select
-    value={issueStatus}
-    onChange={(e) => setIssueStatus(e.target.value)}
-    className="w-full border rounded-lg p-3"
-  >
-
-    <option value="backlog">Backlog</option>
-
-    <option value="todo">To Do</option>
-
-    <option value="in_progress">In Progress</option>
-
-    <option value="done">Done</option>
-
-  </select>
 
 </div>
       {/* Priority */}

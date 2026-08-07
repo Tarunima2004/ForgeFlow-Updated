@@ -297,6 +297,7 @@ RETURNING *`,
 // ✅ List all issues
 async function listIssues({
   user,
+  projectId,
   status,
   issueType,
   q,
@@ -315,6 +316,7 @@ async function listIssues({
     countQuery,
     countValues,
   } = buildIssueQuery({
+    projectId,
 
     status,
 

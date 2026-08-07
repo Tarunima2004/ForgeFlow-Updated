@@ -24,13 +24,6 @@ export function buildHierarchyTree(issues = []) {
   });
 issues.forEach(issue => {
 
-    console.log({
-        id: issue.id,
-        title: issue.title,
-        parent: issue.parent_issue_id,
-        type: issue.issue_type
-    });
-
 });
   issueMap.forEach((issue) => {
     if (issue.parent_issue_id) {
@@ -53,6 +46,5 @@ issues.forEach(issue => {
   }
 
   rootIssues.forEach(updateMetadata);
-  console.dir(rootIssues, { depth: null });
   return rootIssues;
 }

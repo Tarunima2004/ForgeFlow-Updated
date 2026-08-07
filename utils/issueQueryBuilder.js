@@ -74,7 +74,11 @@ function buildConditions(options = {}) {
       )
     `);
   }
-
+ console.log({
+    projectId: options.projectId,
+    status: options.status,
+    priority: options.priority
+});
   return {
     whereClause:
       conditions.length > 0
@@ -202,7 +206,10 @@ const joins = buildJoins();
   const countQuery = buildCountQuery(
     whereClause
   );
-
+  console.log("========== SQL ==========");
+  console.log(query);
+  console.log(values);
+  console.log("=========================");
   return {
     query,
     values: finalValues,

@@ -59,7 +59,13 @@ async function createIssue(req, res) {
     validateIssueType(
       body.issueType || "Task"
     );
-
+  const parentIssueId =
+    body.parentIssueId
+        ? assertRequiredString(
+              body.parentIssueId,
+              "parentIssueId"
+          )
+        : null;
   const description =
     assertOptionalString(
       body.description,
@@ -128,6 +134,7 @@ async function createIssue(req, res) {
       {
         title,
         projectId,
+        parentIssueId,
         issueType,
         description,
         labels,
@@ -258,6 +265,9 @@ async function listIssues(req, res, url) {
   const issueType =
     url.searchParams.get("issueType");
 
+  const projectId =
+    url.searchParams.get("projectId");
+
   const assignedTo =
     url.searchParams.get("assignedTo");
 
@@ -353,6 +363,8 @@ async function listIssues(req, res, url) {
     await issuesService.listIssues({
 
       user: req.user,
+
+      projectId,
 
       status,
 

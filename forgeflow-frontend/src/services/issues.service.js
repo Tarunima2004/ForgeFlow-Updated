@@ -1,8 +1,25 @@
 import api from "../api/axios";
 
-export const getIssues = async () => {
-  const response = await api.get("/issues");
+export const getIssues = async (params = {}) => {
+
+  const response = await api.get("/issues", {
+    params,
+  });
+
   return response.data;
+
+};
+export const getProjectIssues = async (
+  projectId
+) => {
+
+  const response =
+    await api.get(
+      `/projects/${projectId}/issues`
+    );
+
+  return response.data;
+
 };
 
 export const createIssue = async (issueData) => {
