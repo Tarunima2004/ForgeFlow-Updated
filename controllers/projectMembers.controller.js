@@ -1,6 +1,7 @@
 const sendJson = require("../utils/sendJson");
 const { readJsonBody } = require("../utils/request");
 const { assertRequiredString } = require("../utils/validators");
+const { requireAuth } = require("../utils/requireAuth");
 
 const projectMembersService = require("../services/projectMembers.service");
 
@@ -10,20 +11,28 @@ const projectMembersService = require("../services/projectMembers.service");
 
 async function addMember(req, res, projectId) {
 
-  const body =
-    await readJsonBody(req);
+  await requireAuth(req);
 
-  const userId =
-    assertRequiredString(
-      body.userId,
-      "userId"
-    );
+const body =
+  await readJsonBody(req);
 
-  const member =
-    await projectMembersService.addMember(
-      projectId,
-      userId
-    );
+const userId =
+  assertRequiredString(
+    body.userId,
+    "userId"
+  );
+
+const permissionRole =
+  body.permission_role ||
+  "member";
+
+const member =
+  await projectMembersService.addMember(
+    projectId,
+    userId,
+    permissionRole,
+    req.user
+  );
 
   return sendJson(
     res,

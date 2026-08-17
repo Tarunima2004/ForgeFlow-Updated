@@ -67,7 +67,31 @@ if (projectIssuesMatch) {
     }
     return false;
 }
+// ========================================
+// /projects/:projectId/members
+// ========================================
+// /projects/:projectId/members/available
+const availableMembersMatch =
+  path.match(/^\/projects\/([^/]+)\/members\/available$/);
 
+if (availableMembersMatch) {
+
+  const projectId =
+    availableMembersMatch[1];
+
+  if (req.method === "GET") {
+
+    await projectsController.getAvailableProjectMembers(
+      req,
+      res,
+      projectId
+    );
+
+    return true;
+  }
+
+  return false;
+}
   // /projects/:id/activity
   const activityMatch = path.match(/^\/projects\/([^/]+)\/activity$/);
   if (activityMatch) {

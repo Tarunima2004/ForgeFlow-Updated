@@ -11,6 +11,7 @@ import { getUsers , getJobRoles,} from "../services/users.service";
 import {getRecentActivity} from "../services/activity.service";
 import {getIssuesByStatus,getIssuesByPriority,} from "../services/dashboard.service";
 import { getDepartments } from "../services/config.service";
+import InvitationModal from "../components/invitations/InvitationModal";
 const STATS_DATA = [
   {
     id: "total-projects",
@@ -350,6 +351,7 @@ export default function AdminDashboard() {
   const [jobRoles, setJobRoles] = useState({});
   const [parentIssue, setParentIssue] = useState("");
   const [availableParents, setAvailableParents] = useState([]);
+  const [showInvitationModal, setShowInvitationModal] =useState(false);
   const fetchProjects = async () => {
   try {
   const response = await getProjects();
@@ -1160,13 +1162,12 @@ const handleQuickAction = (action) => {
       break;
 
     case "inviteUser":
-      console.log("Invite User");
-      break;
+  setShowInvitationModal(true);
+  break;
 
     case "assignTask":
       console.log("Assign Task");
       break;
-
     default:
       break;
   }
@@ -1417,9 +1418,12 @@ Create Project
                   <button className="px-3 py-1.5 bg-[#eceef0] hover:bg-[#e6e8ea] rounded text-[12px] font-medium transition-colors cursor-pointer border-0">
                     Manage Users
                   </button>
-                  <button className="px-3 py-1.5 bg-[#2036bd] text-white rounded text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all cursor-pointer border-0">
-                    Invite User
-                  </button>
+                  <button
+    onClick={() => setShowInvitationModal(true)}
+    className="px-3 py-1.5 bg-[#2036bd] text-white rounded text-[12px] font-medium hover:brightness-110 active:scale-95 transition-all cursor-pointer border-0"
+>
+    Invite User
+</button>
                 </div>
               </div>
 
@@ -2477,6 +2481,10 @@ projectMode === "create"
 
   </div>
 )}
+<InvitationModal
+    isOpen={showInvitationModal}
+    onClose={() => setShowInvitationModal(false)}
+/>
     </div>
   );
 }

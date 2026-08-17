@@ -76,14 +76,24 @@ export default function IssueContainer({scope = "admin",projectId = null,}) {
   const [editingIssue, setEditingIssue] =useState(null);
   const [selectedProject,setSelectedProject] = useState(null);
   const [expandedIssues, setExpandedIssues] = useState(new Set());
-  const [newIssue, setNewIssue] =
-  useState({
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [availableParents, setAvailableParents] = useState([]);
+  const [newIssue, setNewIssue] = useState({
     title: "",
     projectId: "",
+    issueType: "Task",
+    parentIssueId: "",
+    description: "",
     priority: "medium",
-    dueDate: "",
     assignedTo: "",
-  });
+    startDate: "",
+    dueDate: "",
+    labels: "",
+});
+const parentLabel =
+  newIssue.issueType === "Story"
+    ? "Select Epic"
+    : "Select Story";
   const toggleExpand = (issueId) => {
     setExpandedIssues((prev) => {
         const next = new Set(prev);
@@ -550,6 +560,84 @@ async function loadUsers() {
     );
   }
 }
+async function loadProjectMembers(projectId) {
+  try {
+
+    if (!projectId) {
+      setProjectMembers([]);
+      return;
+    }
+
+    const response = await api.get(
+      `/projects/${projectId}`
+    );
+
+    setProjectMembers(
+      response.data.data.members || []
+    );
+
+  } catch (error) {
+
+    console.error(
+      "Failed to load project members",
+      error
+    );
+
+    setProjectMembers([]);
+
+  }
+}
+async function loadParentIssues(
+  projectId,
+  issueType
+) {
+  try {
+
+    if (
+      !projectId ||
+      issueType === "Epic"
+    ) {
+      setAvailableParents([]);
+      return;
+    }
+
+    const response =
+      await getProjectIssues(projectId);
+
+    const issues =
+      response.data || [];
+
+    let parents = [];
+
+    if (issueType === "Story") {
+
+      parents = issues.filter(
+        issue =>
+          issue.issue_type === "Epic"
+      );
+
+    } else {
+
+      parents = issues.filter(
+        issue =>
+          issue.issue_type === "Story"
+      );
+
+    }
+
+    setAvailableParents(parents);
+
+  } catch (error) {
+
+    console.error(
+      "Failed to load parent issues",
+      error
+    );
+
+    setAvailableParents([]);
+
+  }
+}
 async function handleCreateIssue() {
   try {
     if (
@@ -564,30 +652,53 @@ async function handleCreateIssue() {
     }
 
     await createIssue({
-      title: newIssue.title,
-      projectId: isAdmin
-    ? newIssue.projectId
-    : projectId,
-      priority:
-        newIssue.priority,
-      dueDate:
-        newIssue.dueDate || null,
-      assignedTo:
-        newIssue.assignedTo || null,
-    });
 
+    title: newIssue.title,
+
+    projectId: newIssue.projectId,
+
+    issueType: newIssue.issueType,
+
+    description: newIssue.description,
+
+    priority: newIssue.priority,
+
+    parentIssueId:
+        newIssue.parentIssueId || null,
+
+    assignedTo:
+        newIssue.assignedTo || undefined,
+
+    startDate:
+        newIssue.startDate || undefined,
+
+    dueDate:
+        newIssue.dueDate || undefined,
+
+    labels: newIssue.labels
+        .split(",")
+        .map(label => label.trim())
+        .filter(Boolean),
+
+});
     await loadIssues();
 
     setShowCreateModal(false);
 
     setNewIssue({
-      title: "",
-      projectId: "",
-      priority: "medium",
-      dueDate: "",
-      assignedTo: "",
-    });
+    title: "",
+    projectId: "",
+    issueType: "Task",
+    parentIssueId: "",
+    description: "",
+    priority: "medium",
+    assignedTo: "",
+    startDate: "",
+    dueDate: "",
+    labels: "",
+});
 
+setAvailableParents([]);
   } catch (error) {
 
     console.error(
@@ -809,7 +920,17 @@ const handleUpdateIssue =
 };
   return (
     <div className="min-h-screen bg-[#f7f9fb] text-[#191c1e] font-sans">
-        <Sidebar />
+        <Sidebar
+    role={
+        isAdmin
+            ? "admin"
+            : isManager
+            ? "manager"
+            : "member"
+    }
+    projectId={projectId}
+    mode="global"
+/>
 
     <Navbar />
 
@@ -1086,164 +1207,355 @@ const handleUpdateIssue =
             )}
           </section>
         </aside>
-       {showCreateModal && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+{showCreateModal && (
 
-    <div className="bg-white rounded-xl p-6 w-[500px]">
+<div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 overflow-y-auto">
 
-      <h2 className="text-2xl font-bold mb-4">
-        Create Issue
-      </h2>
+<div className="bg-white rounded-xl p-8 w-[820px] max-h-[90vh] overflow-y-auto shadow-2xl">
+      <h2 className="text-2xl font-semibold mb-6">
+  Create New Issue
+</h2>
+     <div className="mb-4">
 
-      <div className="space-y-4">
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Issue Title
+  </label>
 
-        {/* Title */}
-        <input
-          type="text"
-          placeholder="Issue Title"
-          value={newIssue.title}
-          onChange={(e) =>
-            setNewIssue({
-              ...newIssue,
-              title: e.target.value,
-            })
-          }
-          className="w-full border rounded-lg p-3"
-        />
+  <input
+    type="text"
+    placeholder="Enter issue title"
+    value={newIssue.title}
+    onChange={(e) =>
+    setNewIssue({
+        ...newIssue,
+        title: e.target.value,
+    })
+}
+    className="w-full border rounded-lg p-3"
+  />
 
-        {/* Project */}
-        {isAdmin ? (
+</div>
+      <div className="mb-4">
 
-    <select
-        value={newIssue.projectId}
-        onChange={(e) =>
-            setNewIssue({
-                ...newIssue,
-                projectId: e.target.value,
-            })
-        }
-        className="w-full border rounded-lg p-3"
-    >
-        <option value="">
-            Select Project
-        </option>
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Project
+  </label>
 
-        {projects.map((project) => (
-            <option
-                key={project.id}
-                value={project.id}
-            >
-                {project.project_name}
-            </option>
-        ))}
-    </select>
+  <select
+    value={newIssue.projectId}
+    onChange={async (e) => {
 
-) : (
+      const value = e.target.value;
 
-    <input
-        type="text"
-        value={
-            projects.find(
-                (p) => p.id === projectId
-            )?.project_name || ""
-        }
-        disabled
-        className="w-full border rounded-lg p-3 bg-gray-100"
-    />
+      setNewIssue({
+    ...newIssue,
+    projectId: value,
+});
+
+      await loadProjectMembers(value);
+
+      await loadParentIssues(value,newIssue.issueType);
+
+    }}
+    className="w-full border rounded-lg p-3"
+  >
+
+    <option value="">
+      Select Project
+    </option>
+
+    {projects.map((project) => (
+
+      <option
+        key={project.id}
+        value={project.id}
+      >
+
+        {project.project_name}
+
+      </option>
+
+    ))}
+  </select>
+</div>
+      <div className="mb-4">
+
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Issue Type
+  </label>
+
+  <select
+    value={newIssue.issueType}
+    onChange={async (e) => {
+
+    const value = e.target.value;
+
+    setNewIssue({
+    ...newIssue,
+    issueType: value,
+});
+
+    await loadParentIssues(
+        newIssue.projectId,
+        value
+    );
+
+}}
+    className="w-full border rounded-lg p-3"
+  >
+
+    <option value="Task">Task</option>
+
+    <option value="Story">Story</option>
+
+    <option value="Bug">Bug</option>
+
+    <option value="Epic">Epic</option>
+
+    <option value="Improvement">Improvement</option>
+
+  </select>
+
+</div>
+{newIssue.issueType !== "Epic" && (
+
+<div className="mb-4">
+
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+
+    {parentLabel}
+
+  </label>
+
+  <select
+
+    value={newIssue.parentIssueId}
+
+    onChange={(e) =>
+      setNewIssue({
+    ...newIssue,
+    parentIssueId: e.target.value,
+})
+    }
+
+    className="w-full border rounded-lg p-3"
+
+  >
+
+    <option value="">
+      Select Parent
+    </option>
+
+    {availableParents.map((issue) => (
+
+      <option
+
+        key={issue.id}
+
+        value={issue.id}
+
+      >
+
+        {issue.issue_key} • {issue.title}
+
+      </option>
+
+    ))}
+
+  </select>
+
+</div>
 
 )}
-        {/* Priority */}
-        <select
-          value={newIssue.priority}
-          onChange={(e) =>
-            setNewIssue({
-              ...newIssue,
-              priority: e.target.value,
-            })
-          }
-          className="w-full border rounded-lg p-3"
-        >
-          <option value="low">
-            Low Priority
-          </option>
+<div className="mb-4">
 
-          <option value="medium">
-            Medium Priority
-          </option>
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Description
+  </label>
 
-          <option value="high">
-            High Priority
-          </option>
+  <textarea
+    rows={5}
+    value={newIssue.description}
+    onChange={(e) => setNewIssue({
+    ...newIssue,
+    description: e.target.value,
+})}
+    placeholder="Describe the issue..."
+    className="w-full border rounded-lg p-3"
+  />
 
-          <option value="critical">
-            Critical Priority
-          </option>
-        </select>
+</div>
 
-        {/* Due Date */}
-        <input
-          type="date"
-          value={newIssue.dueDate}
-          onChange={(e) =>
-            setNewIssue({
-              ...newIssue,
-              dueDate: e.target.value,
-            })
-          }
-          className="w-full border rounded-lg p-3"
-        />
-        
-        {/* Assignee */}
-        <select
-          value={newIssue.assignedTo}
-          onChange={(e) =>
-            setNewIssue({
-              ...newIssue,
-              assignedTo: e.target.value,
-            })
-          }
-          className="w-full border rounded-lg p-3"
-        >
-          <option value="">
-            Select User
-          </option>
+<div className="mb-4">
 
-          {users.map((user) => (
-            <option
-              key={user.id}
-              value={user.id}
-            >
-              {user.name}
-            </option>
-          ))}
-        </select>
+</div>
+      {/* Priority */}
 
-        <div className="flex justify-end gap-3 pt-4">
+<div className="mb-4">
 
-          <button
-            onClick={() =>
-              setShowCreateModal(false)
-            }
-            className="px-4 py-2 border rounded-lg"
-          >
-            Cancel
-          </button>
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Priority
+  </label>
 
-          <button
-           onClick={handleCreateIssue}
-            className="px-4 py-2 bg-[#2036bd] text-white rounded-lg"
-          >
-            Create
-          </button>
+  <select
+    value={newIssue.priority}
+    onChange={(e) => setNewIssue({
+    ...newIssue,
+    priority: e.target.value,
+})}
+    className="w-full border rounded-lg p-3"
+  >
 
-        </div>
+    <option value="low">
+      Low Priority
+    </option>
 
-      </div>
+    <option value="medium">
+      Medium Priority
+    </option>
+
+    <option value="high">
+      High Priority
+    </option>
+
+    <option value="critical">
+      Critical Priority
+    </option>
+
+  </select>
+
+</div>
+<div className="grid grid-cols-2 gap-4 mb-4">
+
+  {/* Start Date */}
+
+  <div>
+
+    <label className="block mb-2 text-sm font-semibold text-[#454654]">
+      Start Date
+    </label>
+
+    <input
+      type="date"
+      value={newIssue.startDate}
+      onChange={(e) =>
+        setNewIssue({
+    ...newIssue,
+    startDate: e.target.value,
+})
+      }
+      className="w-full border rounded-lg p-3"
+    />
+
+  </div>
+
+  {/* Due Date */}
+
+  <div>
+
+    <label className="block mb-2 text-sm font-semibold text-[#454654]">
+      Due Date
+    </label>
+
+    <input
+      type="date"
+      value={newIssue.dueDate}
+      onChange={(e) =>
+        setNewIssue({
+    ...newIssue,
+    dueDate: e.target.value,
+})
+      }
+      className="w-full border rounded-lg p-3"
+    />
+
+  </div>
+
+</div>
+{/* Assign User */}
+
+<div className="mb-4">
+
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Assign To
+  </label>
+
+  <select
+    value={newIssue.assignedTo}
+    onChange={(e) =>
+      setNewIssue({
+    ...newIssue,
+    assignedTo: e.target.value,
+})
+    }
+    className="w-full border rounded-lg p-3"
+  >
+
+    <option value="">
+      Select User
+    </option>
+
+    {projectMembers.map((member) => (
+
+      <option
+        key={member.user_id}
+        value={member.user_id}
+      >
+
+        {member.name}
+
+      </option>
+
+    ))}
+
+  </select>
+
+</div>
+<div className="mb-4">
+
+  <label className="block mb-2 text-sm font-semibold text-[#454654]">
+    Labels
+  </label>
+
+  <input
+    type="text"
+    placeholder="Example: backend, api, authentication"
+    value={newIssue.labels}
+    onChange={(e) =>
+      setNewIssue({
+    ...newIssue,
+    labels: e.target.value,
+})
+    }
+    className="w-full border rounded-lg p-3"
+  />
+
+</div>
+      <div className="flex justify-end gap-3 mt-8">
+
+  <button
+    onClick={() =>
+      setShowCreateModal(false)
+    }
+    className="px-5 py-2 border rounded-lg"
+  >
+    Cancel
+  </button>
+
+  <button
+    onClick={handleCreateIssue}
+    className="px-5 py-2 bg-[#2036bd] text-white rounded-lg hover:brightness-110 transition"
+  >
+    Create Issue
+  </button>
+
+</div>
 
     </div>
 
   </div>
 )}
+
 {showEditModal && editingIssue && (
   <div className="
     fixed inset-0

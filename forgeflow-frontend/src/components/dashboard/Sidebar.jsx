@@ -21,49 +21,47 @@ const LOGO_SRC =
 export default function Sidebar({
   role = "admin",
   projectId = null,
+  mode = "workspace",
 }) {
-  const NAV_LINKS =
-  role === "admin"
-    ? [
-        {
-          to: "/dashboard",
-          icon: "dashboard",
-          label: "Dashboard",
-        },
-        {
-          to: "/projects",
-          icon: "folder_open",
-          label: "Projects",
-        },
-        {
-          to: "/issues",
-          icon: "bug_report",
-          label: "Issues",
-        },
-        {
-          to: "/users",
-          icon: "group",
-          label: "Users",
-        },
-        {
-          to: "/activity",
-          icon: "history",
-          label: "Activity",
-        },
-        {
-          to: "/analytics",
-          icon: "analytics",
-          label: "Analytics",
-        },
-        {
-          to: "/ai-planner",
-          icon: "auto_awesome",
-          label: "AI Planner",
-        },
-      ]
-    : role === "manager"
-    ? [
-        {
+const adminLinks = [
+    {
+        to: "/dashboard",
+        icon: "dashboard",
+        label: "Dashboard",
+    },
+    {
+        to: "/projects",
+        icon: "folder_open",
+        label: "Projects",
+    },
+    {
+        to: "/issues",
+        icon: "bug_report",
+        label: "Issues",
+    },
+    {
+        to: "/users",
+        icon: "group",
+        label: "Users",
+    },
+    {
+        to: "/activity",
+        icon: "history",
+        label: "Activity",
+    },
+    {
+        to: "/analytics",
+        icon: "analytics",
+        label: "Analytics",
+    },
+    {
+        to: "/ai-planner",
+        icon: "auto_awesome",
+        label: "AI Planner",
+    },
+];
+const managerWorkspaceLinks = [
+   {
           to: `/manager-workspace/${projectId}`,
           icon: "dashboard",
           label: "Dashboard",
@@ -98,9 +96,9 @@ export default function Sidebar({
           icon: "analytics",
           label: "Analytics",
         },
-      ]
-    : [
-        {
+];
+const memberWorkspaceLinks = [
+   {
           to: `/member-workspace/${projectId}`,
           icon: "dashboard",
           label: "Dashboard",
@@ -130,7 +128,26 @@ export default function Sidebar({
           icon: "folder_open",
           label: "Files",
         },
-      ];
+];
+  let NAV_LINKS;
+
+if (role === "admin") {
+
+    NAV_LINKS = adminLinks;
+
+} else if (role === "manager") {
+
+    NAV_LINKS = managerWorkspaceLinks;
+
+} else if (role === "member") {
+
+    NAV_LINKS = memberWorkspaceLinks;
+
+} else {
+
+    NAV_LINKS = adminLinks;
+
+}
   const navLinkClass = ({ isActive }) =>
     `flex items-center gap-3 px-3 py-2 rounded-[0.75rem]
      transition-colors duration-100 text-[14px] leading-[20px]

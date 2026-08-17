@@ -149,20 +149,8 @@ async function sendOtpEmail({
 // Send Project Assignment Email
 // ==============================
 
-async function sendProjectAssignmentEmail({
-
-  email,
-
-  name,
-
-  projectName,
-
-  permissionRole,
-
-  designation,
-
-}) {
-
+async function sendProjectAssignmentEmail({email,name,projectName,permissionRole,designation,}) {
+console.log("INSIDE sendProjectAssignmentEmail");
   const roleText =
     permissionRole === "manager"
       ? "Manager"
@@ -192,23 +180,21 @@ async function sendProjectAssignmentEmail({
     </p>
 
     <p>
-
-      ForgeFlow Admin has welcomed you as a
-      <strong>${roleText}</strong>
-      for the project
-
-      <strong>${projectName}</strong>.
-
-    </p>
-
-    <p>
-
-      <strong>Your Designation :</strong>
-
-      ${designation}
-
-    </p>
-
+  You have been added to the project
+  <strong>${projectName}</strong>
+  as a
+  <strong>${roleText}</strong>.
+</p>
+    ${
+  designation
+    ? `
+      <p>
+        <strong>Your Designation:</strong>
+        ${designation}
+      </p>
+    `
+    : ""
+}
     <p>
 
       Please login to ForgeFlow to view your project.
@@ -242,7 +228,84 @@ async function sendProjectAssignmentEmail({
   });
 
 }
+// ==============================
+// Send Test Email
+// ==============================
 
+async function sendTestEmail() {
+  return sendEmail({
+    to: process.env.TEST_EMAIL,
+    subject: "ForgeFlow Test Email",
+    html: `
+      <h2>ForgeFlow Email Test</h2>
+
+      <p>
+        Congratulations 🎉
+      </p>
+
+      <p>
+        Brevo integration is working successfully.
+      </p>
+    `,
+  });
+}
+// ==============================
+// Send Invitation Email
+// ==============================
+
+async function sendInvitationEmail({
+  email,
+  name,
+  invitationToken,
+}) {
+
+  const invitationLink =
+    `${process.env.APP_URL}/accept-invitation?token=${invitationToken}`;
+
+  const html = `
+      <h2>Welcome to ForgeFlow</h2>
+
+      <p>
+        Hello <strong>${name}</strong>,
+      </p>
+
+      <p>
+        You have been invited to join ForgeFlow.
+      </p>
+
+      <p>
+        Click the button below to accept your invitation.
+      </p>
+
+      <a
+        href="${invitationLink}"
+        style="
+          display:inline-block;
+          padding:12px 20px;
+          background:#2036bd;
+          color:white;
+          text-decoration:none;
+          border-radius:6px;
+        "
+      >
+        Accept Invitation
+      </a>
+
+      <p>
+        Or copy this link:
+      </p>
+
+      <p>
+        ${invitationLink}
+      </p>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "You're invited to ForgeFlow",
+    html,
+  });
+}
 module.exports = {
 
   sendEmail,
@@ -250,5 +313,7 @@ module.exports = {
   sendOtpEmail,
 
   sendProjectAssignmentEmail,
-
+ 
+  sendTestEmail,
+  sendInvitationEmail,
 };

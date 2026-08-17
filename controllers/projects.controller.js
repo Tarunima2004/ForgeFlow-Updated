@@ -45,6 +45,9 @@ async function createProject(req, res) {
       priority:
         body.priority,
 
+      department:
+       body.department,
+
       start_date:
         body.start_date,
 
@@ -555,6 +558,42 @@ async function getProjectActivity(
   );
 
 }
+async function getAvailableProjectMembers(
+  req,
+  res,
+  projectId
+) {
+
+  try {
+
+    const users =
+      await projectsService.getAvailableProjectMembers(
+        projectId
+      );
+
+    return sendJson(
+      res,
+      200,
+      {
+        success: true,
+        data: users,
+      }
+    );
+
+  } catch (error) {
+
+    return sendJson(
+      res,
+      error.statusCode || 500,
+      {
+        success: false,
+        message: error.message,
+        code: error.code,
+      }
+    );
+
+  }
+}
 module.exports = {
   createProject,
   listProjects,
@@ -575,4 +614,5 @@ module.exports = {
   getSingleProjectHealth,
   getUpcomingProjectDeadlines,
   getProjectActivity,
+  getAvailableProjectMembers,
 };

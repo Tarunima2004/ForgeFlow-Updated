@@ -41,7 +41,6 @@ async function createInvitation(
         body.password,
         "password"
       );
-const role = "member";
     const invitation =
       await invitationsService.createInvitation({
 
@@ -50,8 +49,6 @@ const role = "member";
         name,
 
         password,
-
-        role,
         invitedBy:
       req.user.id,
 

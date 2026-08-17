@@ -49,7 +49,6 @@ const statistics = {
 export default function ProjectWorkspaceManager() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const { projectId } = useParams();
-  console.log(projectId);
 
 const [projectData, setProjectData] =useState(null);
 const [statisticsData, setStatisticsData] =useState(null);
@@ -393,6 +392,7 @@ function getActivityColor(action) {
 <Sidebar
     role="manager"
     projectId={projectId}
+    mode="global"
 />
 
         {/* Main Content Area */}

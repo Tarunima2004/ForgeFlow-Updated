@@ -2,6 +2,9 @@ const pool =require("../utils/db");
 const usersService =require("./users.service");
 const {HttpError,} = require("../utils/errors");
 const {hashPassword,} = require("../utils/password");
+const {
+    sendInvitationEmail,
+} = require("./email.service");
 const {generateInvitationToken,hashInvitationToken,} = require("../utils/invitationToken");
 async function getPendingInvitationByEmail(
   email
@@ -55,7 +58,6 @@ async function createInvitation({
   email,
   name,
   password,
-  role,
   invitedBy,
 }) {
   // ==============================
@@ -133,7 +135,7 @@ const result =
     (
       email,
       name,
-      role,
+      global_role,
       password_hash,
       token_hash,
       status,
@@ -144,18 +146,18 @@ const result =
     (
       $1,
       $2,
+      'member',
       $3,
       $4,
-      $5,
       'pending',
-      $6,
-      $7
+      $5,
+      $6
     )
     RETURNING
       id,
       email,
       name,
-      role,
+      global_role,
       status,
       invited_by,
       expires_at,
@@ -164,13 +166,17 @@ const result =
     [
       email.trim().toLowerCase(),
       name.trim(),
-      role,
       passwordHash,
       tokenHash,
       invitedBy,
       expiresAt,
     ]
   );
+  await sendInvitationEmail({
+    email,
+    name,
+    invitationToken,
+});
 return {
   invitation:
     result.rows[0],

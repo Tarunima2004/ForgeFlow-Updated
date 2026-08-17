@@ -113,61 +113,63 @@ async function generateProjectId() {
   return `PRJ-${String(number).padStart(6, "0")}`;
 }
 async function insertProject(client, projectData) {
-  const result = await client.query(
-    `
-    INSERT INTO projects
-    (
-      id,
-      project_id,
-      project_code,
-      project_name,
-      description,
 
-      status,
-      priority,
+    const result = await client.query(
+        `
+        INSERT INTO projects
+        (
+            id,
+            project_id,
+            project_code,
+            project_name,
+            description,
 
-      start_date,
-      end_date,
+            status,
+            priority,
+            dept,
 
-      estimated_completion,
-      actual_completion,
+            start_date,
+            end_date,
 
-      visibility,
+            estimated_completion,
+            actual_completion,
 
-      allow_time_tracking,
-      allow_comments,
-      allow_file_uploads,
+            visibility,
 
+            allow_time_tracking,
+            allow_comments,
+            allow_file_uploads,
 
-      created_by,
-      created_at,
+            created_by,
+            created_at,
 
-      updated_by,
-      updated_at,
+            updated_by,
+            updated_at,
 
-      is_archived
-    )
+            is_archived
+        )
 
-    VALUES
-    (
-      $1,$2,$3,$4,$5,
-      $6,
-      $7,$8,
-      $9,$10,
-      $11,$12,
-      $13,
-      $14,$15,$16,
-      $17,
-      $18,$19,
-      $20
-    )
+        VALUES
+        (
+            $1,$2,$3,$4,$5,
+            $6,
+            $7,$8,
+            $9,$10,
+            $11,$12,
+            $13,
+            $14,$15,$16,
+            $17,
+            $18,$19,
+            $20,
+            $21
+        )
 
-    RETURNING *
-    `,
-    projectData
-  );
+        RETURNING *
+        `,
+        projectData
+    );
 
-  return result.rows[0];
+    return result.rows[0];
 }
 async function addProjectMember(
   client,
@@ -209,8 +211,8 @@ async function addProjectMember(
     );
 
   return result.rows[0];
-
-}// ✅ CREATE PROJECT
+}
+// ✅ CREATE PROJECT
 async function createProject(data, currentUser) {
 
   const client = await pool.connect();
@@ -277,49 +279,66 @@ if (
     );
 
 }
-const project = await insertProject(client, [
-  crypto.randomUUID(),
+const projectData = [
+    crypto.randomUUID(),
 
-  projectId,
+    projectId,
 
-  projectCode,
+    projectCode,
 
-  projectName,
+    projectName,
 
-  data.description || null,
+    data.description || null,
 
+    validateStatus(data.status),
 
-  validateStatus(data.status),
+    validatePriority(data.priority),
 
-  validatePriority(data.priority),
+    data.department,
 
-  data.start_date || null,
+    data.start_date || null,
 
-  data.end_date || null,
+    data.end_date || null,
 
-  data.estimated_completion || null,
+    data.estimated_completion || null,
 
-  data.actual_completion || null,
+    data.actual_completion || null,
 
-  validateVisibility(data.visibility),
+    validateVisibility(data.visibility),
 
-  data.allow_time_tracking ?? true,
+    data.allow_time_tracking ?? true,
 
-  data.allow_comments ?? true,
+    data.allow_comments ?? true,
 
-  data.allow_file_uploads ?? true,
+    data.allow_file_uploads ?? true,
 
-  userId,
+    userId,
 
-  now,
+    now,
 
-  userId,
+    userId,
 
-  now,
+    now,
 
-  false,
-]);
-for (const member of projectTeam) {
+    false,
+];
+
+console.log(
+    "PROJECT DATA LENGTH:",
+    projectData.length
+);
+
+console.log(
+    "PROJECT DATA:",
+    projectData
+);
+
+const project =
+    await insertProject(
+        client,
+        projectData
+    );
+    for (const member of projectTeam) {
 
   await addProjectMember(
     client,
@@ -1390,7 +1409,41 @@ async function getProjectActivity(projectId) {
   );
 
   return result.rows;
+}
+async function getAvailableProjectMembers(projectId) {
 
+    const result = await pool.query(
+        `
+        SELECT
+            u.id,
+            u.name,
+            u.email,
+            u.role,
+            u.dept,
+            u.job_role
+
+        FROM users u
+
+        INNER JOIN projects p
+            ON p.dept = u.dept
+
+        LEFT JOIN project_members pm
+            ON pm.project_id = p.id
+            AND pm.user_id = u.id
+
+        WHERE
+            p.id = $1
+            AND p.is_archived = false
+            AND u.role = 'member'
+            AND pm.user_id IS NULL
+
+        ORDER BY
+            u.name ASC
+        `,
+        [projectId]
+    );
+
+    return result.rows;
 }
 module.exports = {
   createProject,
@@ -1411,4 +1464,5 @@ module.exports = {
   getSingleProjectHealth,
   getUpcomingProjectDeadlines,
   getProjectActivity,
+  getAvailableProjectMembers,
 };
